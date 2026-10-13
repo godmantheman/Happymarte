@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Order, Student, StoreConfig, OrderStatus } from '../types';
-import { X, Clock, CheckCircle, Gift, XCircle, AlertCircle } from 'lucide-react';
+import { X, Clock, CheckCircle, Gift, XCircle, AlertCircle, Search } from 'lucide-react';
 
 interface OrderHistoryModalProps {
   isOpen: boolean;
@@ -17,14 +17,21 @@ export const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({
   selectedStudent,
   config,
 }) => {
-  const [filterStudentOnly, setFilterStudentOnly] = useState(true);
+  const [filterStudentOnly, setFilterStudentOnly] = useState(Boolean(selectedStudent));
+  const [searchName, setSearchName] = useState('');
 
   if (!isOpen) return null;
 
   // Filter orders
-  const displayOrders = filterStudentOnly && selectedStudent
-    ? orders.filter((o) => o.studentId === selectedStudent.id || o.studentName === selectedStudent.name)
-    : orders;
+  const displayOrders = orders.filter((o) => {
+    if (searchName.trim()) {
+      return o.studentName.toLowerCase().includes(searchName.toLowerCase().trim());
+    }
+    if (filterStudentOnly && selectedStudent) {
+      return o.studentId === selectedStudent.id || o.studentName === selectedStudent.name;
+    }
+    return true;
+  });
 
   const getStatusBadge = (status: OrderStatus) => {
     switch (status) {
@@ -32,14 +39,14 @@ export const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({
         return (
           <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-800 border border-amber-300">
             <Clock className="w-3.5 h-3.5 mr-1 animate-spin" />
-            선생님 확인 대기 중
+            선생님 수락 대기 중
           </span>
         );
       case 'APPROVED':
         return (
           <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300 animate-pulse">
             <CheckCircle className="w-3.5 h-3.5 mr-1" />
-            주문 승인! 교탁으로 오세요 🎉
+            결제 수락 완료! 교탁으로 오세요 🎉
           </span>
         );
       case 'COMPLETED':
@@ -53,7 +60,7 @@ export const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({
         return (
           <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-black bg-rose-100 text-rose-800 border border-rose-300">
             <XCircle className="w-3.5 h-3.5 mr-1" />
-            주문 취소/거부됨 (환불완료)
+            주문 거부됨
           </span>
         );
     }
@@ -76,9 +83,9 @@ export const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({
           <div className="flex items-center space-x-3">
             <span className="text-3xl">📜</span>
             <div>
-              <h2 className="text-2xl font-black tracking-tight">주문 내역 및 상태</h2>
+              <h2 className="text-2xl font-black tracking-tight">주문 내역 및 수락 상태</h2>
               <p className="text-amber-100 text-xs font-medium">
-                선생님이 주문을 승인했는지 실시간으로 확인할 수 있어요!
+                선생님이 주문을 수락(승인)했는지 실시간으로 확인할 수 있어요!
               </p>
             </div>
           </div>
@@ -90,36 +97,52 @@ export const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({
           </button>
         </div>
 
-        {/* Filter bar */}
-        {selectedStudent && (
-          <div className="px-6 py-3 bg-amber-50 border-b border-amber-200 flex items-center justify-between text-xs font-bold">
-            <span className="text-amber-900">
-              현재 확인 중인 학생: <strong>{selectedStudent.name}</strong>
-            </span>
-            <div className="flex space-x-2">
-              <button
-                onClick={() => setFilterStudentOnly(true)}
-                className={`px-3 py-1 rounded-xl transition-colors ${
-                  filterStudentOnly
-                    ? 'bg-amber-500 text-white shadow-xs'
-                    : 'bg-white text-slate-600 border border-slate-200'
-                }`}
-              >
-                내 주문만 보기
-              </button>
-              <button
-                onClick={() => setFilterStudentOnly(false)}
-                className={`px-3 py-1 rounded-xl transition-colors ${
-                  !filterStudentOnly
-                    ? 'bg-amber-500 text-white shadow-xs'
-                    : 'bg-white text-slate-600 border border-slate-200'
-                }`}
-              >
-                우리 반 전체 보기
-              </button>
+        {/* Search & Filter bar */}
+        <div className="px-6 py-3 bg-amber-50 border-b border-amber-200 flex flex-wrap items-center justify-between gap-2 text-xs font-bold">
+          <div className="flex items-center gap-1.5 w-full sm:w-auto">
+            <div className="relative flex-1 sm:w-48">
+              <input
+                type="text"
+                placeholder="내 이름으로 검색..."
+                value={searchName}
+                onChange={(e) => setSearchName(e.target.value)}
+                className="w-full px-3 py-1.5 pl-8 rounded-xl border border-amber-300 text-xs font-bold bg-white focus:outline-hidden focus:ring-1 focus:ring-amber-500"
+              />
+              <Search className="w-3.5 h-3.5 text-amber-600 absolute left-2.5 top-1/2 -translate-y-1/2" />
             </div>
           </div>
-        )}
+
+          <div className="flex space-x-2">
+            {selectedStudent && (
+              <button
+                onClick={() => {
+                  setSearchName('');
+                  setFilterStudentOnly(true);
+                }}
+                className={`px-3 py-1 rounded-xl transition-colors ${
+                  filterStudentOnly && !searchName
+                    ? 'bg-amber-500 text-white shadow-xs'
+                    : 'bg-white text-slate-600 border border-slate-200'
+                }`}
+              >
+                {selectedStudent.name} 주문만
+              </button>
+            )}
+            <button
+              onClick={() => {
+                setSearchName('');
+                setFilterStudentOnly(false);
+              }}
+              className={`px-3 py-1 rounded-xl transition-colors ${
+                !filterStudentOnly && !searchName
+                  ? 'bg-amber-500 text-white shadow-xs'
+                  : 'bg-white text-slate-600 border border-slate-200'
+              }`}
+            >
+              전체 주문 보기
+            </button>
+          </div>
+        </div>
 
         {/* Orders list */}
         <div className="p-6 overflow-y-auto space-y-4 flex-1">
@@ -130,7 +153,7 @@ export const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({
                 주문 내역이 아직 없습니다.
               </p>
               <p className="text-slate-400 text-xs">
-                행복마트에서 원하는 물품을 골라 장바구니에 담아보세요!
+                원하는 물품을 골라 장바구니에서 신청해보세요!
               </p>
             </div>
           ) : (
@@ -191,20 +214,17 @@ export const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({
                       <span>
                         {order.rejectReason || '선생님과 이야기 후 다시 신청해주세요.'}
                       </span>
-                      <p className="mt-1 text-xs text-emerald-800 font-bold">
-                        ✓ 사용했던 행복머니({order.totalPrice.toLocaleString()} {config.currencyUnit})는 전액 환불되었습니다!
-                      </p>
                     </div>
                   </div>
                 )}
 
-                {/* Footer Total */}
+                {/* Footer */}
                 <div className="flex justify-between items-center pt-2 text-xs font-bold text-slate-600">
                   <span>주문 번호: #{order.id.slice(-6)}</span>
                   <span>
-                    총 결제:{' '}
-                    <strong className="text-amber-800 text-sm">
-                      {order.totalPrice.toLocaleString()} {config.currencyUnit}
+                    신청 물품:{' '}
+                    <strong className="text-slate-800 text-sm">
+                      {order.items.reduce((s, i) => s + i.quantity, 0)}개
                     </strong>
                   </span>
                 </div>

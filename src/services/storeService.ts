@@ -323,8 +323,8 @@ export async function placeOrder(orderData: Omit<Order, 'id' | 'createdAt' | 'st
 
   try {
     await runTransaction(db, async (tx) => {
-      // 1. Verify student and deduct balance
-      if (orderData.studentId) {
+      // 1. Verify student and deduct balance (only for registered students, guests don't need money)
+      if (orderData.studentId && orderData.studentId !== 'guest') {
         const studentRef = doc(db, STUDENTS_COLLECTION, orderData.studentId);
         const sSnap = await tx.get(studentRef);
         if (sSnap.exists()) {
@@ -387,7 +387,7 @@ export async function updateOrderStatus(
     await runTransaction(db, async (tx) => {
       // If rejecting an order, refund student and restore stock!
       if (newStatus === 'REJECTED' && order.status !== 'REJECTED') {
-        if (order.studentId) {
+        if (order.studentId && order.studentId !== 'guest') {
           const studentRef = doc(db, STUDENTS_COLLECTION, order.studentId);
           const sSnap = await tx.get(studentRef);
           if (sSnap.exists()) {

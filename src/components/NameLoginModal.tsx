@@ -1,17 +1,23 @@
 import React, { useState } from 'react';
 import { Student } from '../types';
-import { User, Sparkles, Shield, ArrowRight, Loader2 } from 'lucide-react';
+import { User, Sparkles, Shield, ArrowRight, Loader2, ShoppingBag, X } from 'lucide-react';
 
 interface NameLoginModalProps {
   isOpen: boolean;
   onLogin: (name: string) => Promise<void>;
+  onGuestMode: () => void;
   registeredStudents: Student[];
+  allowClose?: boolean;
+  onClose?: () => void;
 }
 
 export const NameLoginModal: React.FC<NameLoginModalProps> = ({
   isOpen,
   onLogin,
+  onGuestMode,
   registeredStudents,
+  allowClose = true,
+  onClose,
 }) => {
   const [nameInput, setNameInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -53,7 +59,18 @@ export const NameLoginModal: React.FC<NameLoginModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl border-4 border-amber-300 overflow-hidden">
+      <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl border-4 border-amber-300 overflow-hidden relative">
+        {/* Close Button if applicable */}
+        {allowClose && (
+          <button
+            onClick={onClose || onGuestMode}
+            className="absolute top-4 right-4 z-10 p-2 rounded-2xl bg-black/20 hover:bg-black/30 text-white transition-colors"
+            title="게스트로 닫기"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        )}
+
         {/* Banner */}
         <div className="bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 p-6 text-white text-center relative">
           <div className="w-16 h-16 rounded-3xl bg-white/20 backdrop-blur-xs mx-auto flex items-center justify-center text-3xl mb-3 shadow-inner">
@@ -66,7 +83,7 @@ export const NameLoginModal: React.FC<NameLoginModalProps> = ({
         </div>
 
         {/* Body */}
-        <div className="p-6 sm:p-7 space-y-6">
+        <div className="p-6 sm:p-7 space-y-5">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-black text-slate-700 mb-1.5">
@@ -93,35 +110,47 @@ export const NameLoginModal: React.FC<NameLoginModalProps> = ({
             </div>
 
             {/* Special Teacher Authority Tip */}
-            <div className="p-3.5 rounded-2xl bg-purple-50 border border-purple-200 text-purple-900 text-xs font-semibold flex items-start space-x-2.5">
+            <div className="p-3 rounded-2xl bg-purple-50 border border-purple-200 text-purple-900 text-xs font-semibold flex items-start space-x-2.5">
               <Shield className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
               <div>
                 <span className="font-black text-purple-800">선생님 권한 안내:</span>
-                <p className="mt-0.5 text-purple-700">
-                  이름에 <strong className="text-purple-950 underline decoration-purple-400 underline-offset-2">&lsquo;방소정&rsquo;</strong>을 입력하면 자동으로 선생님 권한(물품 관리, 주문 승인/거부, 친구들 돈 설정)이 활성화됩니다!
+                <p className="mt-0.5 text-purple-700 text-2xs sm:text-xs">
+                  이름에 <strong className="text-purple-950 underline decoration-purple-400">&lsquo;방소정&rsquo;</strong>을 입력하면 자동으로 관리자 권한이 부여됩니다.
                 </p>
               </div>
             </div>
 
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={loading || !nameInput.trim()}
-              className="w-full py-4 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 disabled:opacity-50 text-white font-black text-base flex items-center justify-center space-x-2 shadow-lg shadow-orange-500/25 active:scale-98 transition-all"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>로그인 확인 중...</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-5 h-5" />
-                  <span>이름으로 마트 입장하기</span>
-                  <ArrowRight className="w-5 h-5" />
-                </>
-              )}
-            </button>
+            {/* Buttons */}
+            <div className="space-y-2">
+              <button
+                type="submit"
+                disabled={loading || !nameInput.trim()}
+                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 disabled:opacity-50 text-white font-black text-sm sm:text-base flex items-center justify-center space-x-2 shadow-lg shadow-orange-500/25 active:scale-98 transition-all"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>확인 중...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-5 h-5" />
+                    <span>이름으로 마트 입장하기</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+
+              {/* Guest mode button */}
+              <button
+                type="button"
+                onClick={onGuestMode}
+                className="w-full py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs sm:text-sm flex items-center justify-center space-x-1.5 border border-slate-300 transition-colors"
+              >
+                <ShoppingBag className="w-4 h-4 text-amber-600" />
+                <span>로그인 없이 게스트로 바로 쇼핑하기 🛒</span>
+              </button>
+            </div>
           </form>
 
           {/* Quick Select Chips */}
@@ -144,7 +173,7 @@ export const NameLoginModal: React.FC<NameLoginModalProps> = ({
               {/* Other students */}
               {registeredStudents
                 .filter((s) => s.name !== '방소정')
-                .slice(0, 6)
+                .slice(0, 5)
                 .map((student) => (
                   <button
                     key={student.id}

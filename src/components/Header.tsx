@@ -12,6 +12,7 @@ interface HeaderProps {
   onOpenCart: () => void;
   pendingOrdersCount: number;
   onOpenOrderHistory: () => void;
+  onOpenLoginModal: () => void;
   soundEnabled: boolean;
   onToggleSound: () => void;
 }
@@ -21,6 +22,7 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleAdminMode,
   loggedInUser,
   onLogout,
+  onOpenLoginModal,
   config,
   cartCount,
   onOpenCart,
@@ -70,7 +72,7 @@ export const Header: React.FC<HeaderProps> = ({
             )}
 
             {/* Current Active User Pill */}
-            {loggedInUser && (
+            {loggedInUser ? (
               <div className="flex items-center space-x-2 px-3.5 py-1.5 rounded-2xl bg-slate-50 border border-slate-200 shadow-2xs">
                 <span className="text-xl">{loggedInUser.avatar || (isTeacher ? '👩‍🏫' : '🧒')}</span>
                 <div className="text-left">
@@ -99,6 +101,14 @@ export const Header: React.FC<HeaderProps> = ({
                   <LogOut className="w-3.5 h-3.5" />
                 </button>
               </div>
+            ) : (
+              <button
+                onClick={onOpenLoginModal}
+                className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-2xl bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 text-xs font-bold transition-all"
+              >
+                <span>👤 게스트 모드</span>
+                <span className="text-purple-700 underline font-black ml-1">[이름 로그인]</span>
+              </button>
             )}
           </div>
 

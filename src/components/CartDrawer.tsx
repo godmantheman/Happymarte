@@ -1,6 +1,17 @@
 import React, { useState } from 'react';
 import { CartItem, Student, StoreConfig } from '../types';
-import { X, Trash2, Plus, Minus, ShoppingBag, Sparkles, AlertCircle, ArrowRight } from 'lucide-react';
+import {
+  X,
+  Trash2,
+  Plus,
+  Minus,
+  ShoppingBag,
+  Sparkles,
+  AlertCircle,
+  ArrowRight,
+  User,
+  CheckCircle,
+} from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { playPurchaseSuccessSound } from '../utils/audio';
 
@@ -31,9 +42,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   onSubmitOrder,
   onOpenOrderHistory,
 }) => {
+  const [guestName, setGuestName] = useState('');
   const [memo, setMemo] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successOrderId, setSuccessOrderId] = useState<string | null>(null);
+  const [submittedStudentName, setSubmittedStudentName] = useState('');
 
   if (!isOpen) return null;
 
@@ -42,25 +55,40 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     0
   );
 
+  const isGuestMode = !selectedStudent;
   const studentBalance = selectedStudent?.balance || 0;
-  const isBalanceEnough = selectedStudent ? studentBalance >= totalAmount : false;
+
+  // In guest mode, money is NOT required! Just teacher acceptance is needed.
+  const isBalanceEnough = isGuestMode ? true : studentBalance >= totalAmount;
   const shortage = totalAmount - studentBalance;
 
+  // Valid if has items, and either logged in or guest typed a name
+  const canCheckout =
+    items.length > 0 &&
+    (Boolean(selectedStudent) || guestName.trim().length > 0) &&
+    isBalanceEnough;
+
   const handleCheckout = async () => {
-    if (!selectedStudent) {
-      onOpenStudentSelector();
-      return;
-    }
+    if (!canCheckout) return;
 
-    if (!isBalanceEnough) {
-      return;
-    }
+    const buyerName = selectedStudent ? selectedStudent.name : guestName.trim();
+    if (!buyerName) return;
 
-    if (items.length === 0) return;
+    const studentToSubmit: Student = selectedStudent || {
+      id: 'guest',
+      name: buyerName,
+      role: 'STUDENT',
+      grade: '게스트',
+      classroom: '특수학급',
+      balance: 0,
+      avatar: '🛍️',
+    };
 
     try {
       setIsSubmitting(true);
-      await onSubmitOrder(selectedStudent, memo);
+      await onSubmitOrder(studentToSubmit, memo);
+
+      setSubmittedStudentName(buyerName);
 
       // Play joyful sound & Confetti
       playPurchaseSuccessSound();
@@ -72,6 +100,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
       setSuccessOrderId('SUCCESS');
       setMemo('');
+      setGuestName('');
       onClearCart();
     } catch (err) {
       console.error('Order checkout error:', err);
@@ -90,7 +119,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             <div>
               <h2 className="text-xl font-black">내 장바구니</h2>
               <p className="text-xs text-amber-100 font-medium">
-                담은 물품을 확인하고 구매를 신청하세요
+                {isGuestMode ? '게스트 결제: 이름만 적고 신청하세요' : '담은 물품을 확인하고 결제하세요'}
               </p>
             </div>
           </div>
@@ -115,12 +144,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               구매 신청이 완료되었어요!
             </h3>
             <p className="text-sm text-slate-600 leading-relaxed">
-              선생님께 주문 내용이 실시간으로 전달되었어요.<br />
-              선생님이 확인 후 이름을 부르면 교탁으로 오세요!
+              선생님께 주문 로그가 실시간 전송되었습니다.<br />
+              <strong className="text-purple-700">선생님이 수락(주문 승인)</strong>하면 교탁에서 물품을 수령하세요!
             </p>
             <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 w-full text-xs text-amber-900 font-bold space-y-1">
-              <p>구매자: {selectedStudent?.name} 학생</p>
-              <p>결제 금액: {totalAmount.toLocaleString()} {config.currencyUnit}</p>
+              <p>구매자: {submittedStudentName} {isGuestMode && '(게스트)'}</p>
+              <p>결제 요청 물품: {items.length}종</p>
+              <p className="text-emerald-700">✓ 선생님 승인 대기 중</p>
             </div>
             <div className="flex flex-col w-full space-y-2 pt-4">
               <button
@@ -131,7 +161,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 }}
                 className="w-full py-3.5 px-4 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-black text-sm flex items-center justify-center space-x-2 shadow-md shadow-amber-500/20"
               >
-                <span>내 주문 상태 확인하기</span>
+                <span>내 주문 수락 상태 확인하기</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
               <button
@@ -147,32 +177,63 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto p-5 space-y-5">
-            {/* Student selection prompt if none selected */}
-            <div className="p-4 rounded-2xl bg-amber-50 border-2 border-amber-200 flex items-center justify-between">
-              <div>
-                <span className="text-xs text-amber-800 font-bold block">
-                  구매 학생 확인
-                </span>
-                {selectedStudent ? (
+            {/* Buyer Identity Section */}
+            {selectedStudent ? (
+              <div className="p-4 rounded-2xl bg-amber-50 border-2 border-amber-200 flex items-center justify-between">
+                <div>
+                  <span className="text-2xs text-amber-800 font-black block">
+                    로그인된 구매자
+                  </span>
                   <div className="flex items-center space-x-2 mt-1">
                     <span className="text-2xl">{selectedStudent.avatar}</span>
                     <span className="text-base font-black text-slate-800">
                       {selectedStudent.name} 학생
                     </span>
                   </div>
-                ) : (
-                  <span className="text-sm font-bold text-rose-600 mt-1 block">
-                    ⚠️ 구매할 학생을 먼저 선택해주세요
+                  <span className="text-xs text-amber-700 font-bold block mt-0.5">
+                    잔액: {selectedStudent.balance.toLocaleString()} {config.currencyUnit}
                   </span>
-                )}
+                </div>
+                <button
+                  onClick={onOpenStudentSelector}
+                  className="px-3 py-1.5 rounded-xl bg-amber-200 hover:bg-amber-300 text-amber-950 font-bold text-xs transition-colors"
+                >
+                  변경하기
+                </button>
               </div>
-              <button
-                onClick={onOpenStudentSelector}
-                className="px-3 py-1.5 rounded-xl bg-amber-200 hover:bg-amber-300 text-amber-950 font-bold text-xs transition-colors"
-              >
-                {selectedStudent ? '변경하기' : '학생 선택'}
-              </button>
-            </div>
+            ) : (
+              /* GUEST MODE: In-checkout name input with NO MONEY REQUIRED banner */
+              <div className="p-4 rounded-2xl bg-purple-50 border-2 border-purple-200 space-y-3">
+                <div className="flex items-start space-x-2 text-purple-900">
+                  <User className="w-5 h-5 text-purple-600 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-black text-sm">게스트 결제 모드 (로그인 없음)</h4>
+                    <p className="text-xs text-purple-700 mt-0.5 leading-relaxed">
+                      💡 <strong>전용돈 필요 없음!</strong> 이름을 적고 신청하면 선생님이 확인 후 <strong className="text-purple-950">결제를 수락</strong>해 줍니다.
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black text-slate-800 mb-1">
+                    구매자 이름을 적어주세요 *:
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={guestName}
+                    onChange={(e) => setGuestName(e.target.value)}
+                    placeholder="예: 김도윤, 2반 이서연"
+                    className="w-full px-3.5 py-2.5 rounded-xl border-2 border-purple-300 focus:border-purple-600 focus:outline-hidden font-black text-sm text-slate-900 bg-white"
+                  />
+                  {!guestName.trim() && (
+                    <span className="text-2xs font-bold text-rose-500 mt-1 block">
+                      * 결제 신청을 위해 이름을 적어주세요.
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Cart Items List */}
             {items.length === 0 ? (
@@ -251,13 +312,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 {/* Student Memo input */}
                 <div className="pt-2">
                   <label className="block text-xs font-bold text-slate-700 mb-1">
-                    선생님께 드릴 말씀이나 메모 (선택사항)
+                    선생님께 전달할 말이나 요청사항 (선택사항)
                   </label>
                   <input
                     type="text"
                     value={memo}
                     onChange={(e) => setMemo(e.target.value)}
-                    placeholder="예: 파란색 볼펜으로 주세요! 맛있게 먹을게요"
+                    placeholder="예: 초코맛으로 부탁드려요! 감사합니다"
                     maxLength={100}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-amber-400 text-xs font-medium"
                   />
@@ -270,16 +331,21 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         {/* Checkout Summary Footer */}
         {!successOrderId && (
           <div className="p-5 bg-slate-50 border-t border-slate-200 space-y-4">
-            {/* Balance vs Price Breakdown */}
+            {/* Summary */}
             <div className="space-y-1.5 text-xs font-semibold">
               <div className="flex justify-between text-slate-600">
-                <span>총 주문 금액:</span>
+                <span>총 주문 물품:</span>
                 <span className="font-bold text-slate-900 text-sm">
-                  {totalAmount.toLocaleString()} {config.currencyUnit}
+                  {items.reduce((s, i) => s + i.quantity, 0)}개
                 </span>
               </div>
 
-              {selectedStudent && (
+              {isGuestMode ? (
+                <div className="p-2.5 rounded-xl bg-purple-100 text-purple-900 font-bold text-xs flex items-center justify-between">
+                  <span>게스트 결제 혜택:</span>
+                  <span className="text-purple-800 font-black">돈 필요 없음 (선생님 수락 시 완료)</span>
+                </div>
+              ) : (
                 <>
                   <div className="flex justify-between text-slate-600">
                     <span>현재 보유 잔액:</span>
@@ -289,7 +355,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   </div>
 
                   <div className="flex justify-between pt-1 border-t border-slate-200">
-                    <span>구매 후 예상 잔액:</span>
+                    <span>결제 후 잔액:</span>
                     <span
                       className={`font-black text-sm ${
                         isBalanceEnough ? 'text-emerald-700' : 'text-rose-600'
@@ -303,13 +369,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               )}
             </div>
 
-            {/* Warning if balance shortage */}
-            {selectedStudent && !isBalanceEnough && totalAmount > 0 && (
+            {/* Warning if logged in student lacks balance */}
+            {!isGuestMode && !isBalanceEnough && totalAmount > 0 && (
               <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 flex items-start space-x-2 text-rose-700 text-xs font-bold">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                 <span>
-                  행복머니가 {shortage.toLocaleString()} {config.currencyUnit} 부족해요!
-                  선생님께 칭찬을 받고 더 모아보세요. 😊
+                  행복머니가 {shortage.toLocaleString()} {config.currencyUnit} 부족해요.
+                  (게스트 모드로 전환하거나 선생님께 칭찬 머니를 받아보세요!)
                 </span>
               </div>
             )}
@@ -317,28 +383,23 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             {/* Submit button */}
             <button
               onClick={handleCheckout}
-              disabled={
-                items.length === 0 ||
-                !selectedStudent ||
-                !isBalanceEnough ||
-                isSubmitting
-              }
+              disabled={!canCheckout || isSubmitting}
               className={`w-full py-4 px-4 rounded-2xl font-black text-base flex items-center justify-center space-x-2 transition-all active:scale-98 shadow-md ${
-                items.length === 0 || !selectedStudent || !isBalanceEnough
+                !canCheckout
                   ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none'
                   : 'bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 text-white shadow-orange-500/25'
               }`}
             >
               {isSubmitting ? (
-                <span>주문 신청 중...</span>
-              ) : !selectedStudent ? (
-                <span>학생을 먼저 선택하세요</span>
-              ) : !isBalanceEnough && totalAmount > 0 ? (
-                <span>잔액이 부족합니다 😢</span>
+                <span>결제 신청 전송 중...</span>
+              ) : items.length === 0 ? (
+                <span>장바구니가 비어 있습니다</span>
+              ) : isGuestMode && !guestName.trim() ? (
+                <span>구매자 이름을 먼저 적어주세요 ✍️</span>
               ) : (
                 <>
                   <Sparkles className="w-5 h-5" />
-                  <span>구매 신청하기 (선생님께 전송) 🚀</span>
+                  <span>결제 신청하기 (선생님 수락 대기) 🚀</span>
                 </>
               )}
             </button>
