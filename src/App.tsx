@@ -209,6 +209,32 @@ export default function App() {
       totalPrice,
       memo: memo.trim(),
     });
+
+    // Immediately update local balance state so money decreases on screen without waiting
+    setLoggedInUser((curr) => {
+      if (!curr) return null;
+      if (curr.id === student.id || curr.name.trim() === student.name.trim()) {
+        return {
+          ...curr,
+          balance: Math.max(0, curr.balance - totalPrice),
+          totalSpent: (curr.totalSpent || 0) + totalPrice,
+        };
+      }
+      return curr;
+    });
+
+    setStudents((prev) =>
+      prev.map((s) => {
+        if (s.id === student.id || s.name.trim() === student.name.trim()) {
+          return {
+            ...s,
+            balance: Math.max(0, s.balance - totalPrice),
+            totalSpent: (s.totalSpent || 0) + totalPrice,
+          };
+        }
+        return s;
+      })
+    );
   };
 
   // Admin access toggle

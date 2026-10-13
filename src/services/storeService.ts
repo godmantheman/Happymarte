@@ -322,45 +322,89 @@ export async function placeOrder(orderData: Omit<Order, 'id' | 'createdAt' | 'st
   };
 
   try {
-    await runTransaction(db, async (tx) => {
-      // 1. Verify student and deduct balance (only for registered students, guests don't need money)
-      if (orderData.studentId && orderData.studentId !== 'guest') {
-        const studentRef = doc(db, STUDENTS_COLLECTION, orderData.studentId);
-        const sSnap = await tx.get(studentRef);
-        if (sSnap.exists()) {
-          const sData = sSnap.data() as Student;
-          const currentBal = sData.balance || 0;
-          if (currentBal >= orderData.totalPrice) {
-            tx.update(studentRef, {
-              balance: currentBal - orderData.totalPrice,
-              totalSpent: (sData.totalSpent || 0) + orderData.totalPrice,
-              updatedAt: now,
-            });
-          }
-        }
-      }
+    // 1. Guaranteed Student Balance Deduction
+    let targetStudentRef = null;
+    let currentBalance = 3000;
+    let currentSpent = 0;
 
-      // 2. Decrement stock
-      for (const item of orderData.items) {
+    // Check by studentId first if given and not 'guest'
+    if (orderData.studentId && orderData.studentId !== 'guest') {
+      const byIdRef = doc(db, STUDENTS_COLLECTION, orderData.studentId);
+      const byIdSnap = await getDoc(byIdRef);
+      if (byIdSnap.exists()) {
+        targetStudentRef = byIdRef;
+        const sData = byIdSnap.data() as Student;
+        currentBalance = sData.balance !== undefined ? sData.balance : 3000;
+        currentSpent = sData.totalSpent || 0;
+      }
+    }
+
+    // If not found by ID, look up by studentName
+    if (!targetStudentRef && orderData.studentName) {
+      const q = query(
+        collection(db, STUDENTS_COLLECTION),
+        where('name', '==', orderData.studentName.trim())
+      );
+      const nameSnap = await getDocs(q);
+      if (!nameSnap.empty) {
+        targetStudentRef = nameSnap.docs[0].ref;
+        const sData = nameSnap.docs[0].data() as Student;
+        currentBalance = sData.balance !== undefined ? sData.balance : 3000;
+        currentSpent = sData.totalSpent || 0;
+      }
+    }
+
+    if (targetStudentRef) {
+      // Deduct balance directly in Firestore
+      const newBal = Math.max(0, currentBalance - orderData.totalPrice);
+      await updateDoc(targetStudentRef, {
+        balance: newBal,
+        totalSpent: currentSpent + orderData.totalPrice,
+        updatedAt: now,
+      });
+    } else if (orderData.studentName) {
+      // If student not found at all, create new student record with balance deducted from 3000
+      const newStudentId = `student-${Date.now()}`;
+      const newBal = Math.max(0, 3000 - orderData.totalPrice);
+      await setDoc(doc(db, STUDENTS_COLLECTION, newStudentId), {
+        id: newStudentId,
+        name: orderData.studentName.trim(),
+        role: 'STUDENT',
+        grade: '중학교 2학년',
+        classroom: '특수학급',
+        balance: newBal,
+        totalSpent: orderData.totalPrice,
+        totalEarned: 3000,
+        avatar: '🧒',
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    // 2. Decrement item stock safely
+    for (const item of orderData.items) {
+      try {
         const prodRef = doc(db, PRODUCTS_COLLECTION, item.productId);
-        const pSnap = await tx.get(prodRef);
+        const pSnap = await getDoc(prodRef);
         if (pSnap.exists()) {
           const pData = pSnap.data() as Product;
           const newStock = Math.max(0, (pData.stock || 0) - item.quantity);
-          tx.update(prodRef, {
+          await updateDoc(prodRef, {
             stock: newStock,
             isAvailable: newStock > 0,
             updatedAt: now,
           });
         }
+      } catch (prodErr) {
+        console.warn('Stock update warning for item:', item.productId, prodErr);
       }
+    }
 
-      // 3. Save order
-      const orderRef = doc(db, ORDERS_COLLECTION, orderId);
-      tx.set(orderRef, newOrder);
-    });
+    // 3. Save Order to Firestore
+    const orderRef = doc(db, ORDERS_COLLECTION, orderId);
+    await setDoc(orderRef, newOrder);
   } catch (error) {
-    console.warn('Transaction fallback for order creation:', error);
+    console.error('Order creation error:', error);
     try {
       await setDoc(doc(db, ORDERS_COLLECTION, orderId), newOrder);
     } catch (setErr) {
@@ -384,54 +428,74 @@ export async function updateOrderStatus(
   const orderRef = doc(db, ORDERS_COLLECTION, order.id);
 
   try {
-    await runTransaction(db, async (tx) => {
-      // If rejecting an order, refund student and restore stock!
-      if (newStatus === 'REJECTED' && order.status !== 'REJECTED') {
-        if (order.studentId && order.studentId !== 'guest') {
-          const studentRef = doc(db, STUDENTS_COLLECTION, order.studentId);
-          const sSnap = await tx.get(studentRef);
-          if (sSnap.exists()) {
-            const sData = sSnap.data() as Student;
-            tx.update(studentRef, {
-              balance: (sData.balance || 0) + order.totalPrice,
-              totalSpent: Math.max(0, (sData.totalSpent || 0) - order.totalPrice),
-              updatedAt: now,
-            });
-          }
-        }
+    // If rejecting an order, refund student and restore stock!
+    if (newStatus === 'REJECTED' && order.status !== 'REJECTED') {
+      let targetStudentRef = null;
+      let currentBal = 0;
+      let currentSpent = 0;
 
-        // Restore items stock
-        for (const item of order.items) {
+      // Look up by studentId first
+      if (order.studentId && order.studentId !== 'guest') {
+        const sRef = doc(db, STUDENTS_COLLECTION, order.studentId);
+        const sSnap = await getDoc(sRef);
+        if (sSnap.exists()) {
+          targetStudentRef = sRef;
+          const sData = sSnap.data() as Student;
+          currentBal = sData.balance || 0;
+          currentSpent = sData.totalSpent || 0;
+        }
+      }
+
+      // If not found, look up by name
+      if (!targetStudentRef && order.studentName) {
+        const nameQ = query(
+          collection(db, STUDENTS_COLLECTION),
+          where('name', '==', order.studentName.trim())
+        );
+        const nameSnap = await getDocs(nameQ);
+        if (!nameSnap.empty) {
+          targetStudentRef = nameSnap.docs[0].ref;
+          const sData = nameSnap.docs[0].data() as Student;
+          currentBal = sData.balance || 0;
+          currentSpent = sData.totalSpent || 0;
+        }
+      }
+
+      if (targetStudentRef) {
+        await updateDoc(targetStudentRef, {
+          balance: currentBal + order.totalPrice,
+          totalSpent: Math.max(0, currentSpent - order.totalPrice),
+          updatedAt: now,
+        });
+      }
+
+      // Restore items stock
+      for (const item of order.items) {
+        try {
           const prodRef = doc(db, PRODUCTS_COLLECTION, item.productId);
-          const pSnap = await tx.get(prodRef);
+          const pSnap = await getDoc(prodRef);
           if (pSnap.exists()) {
             const pData = pSnap.data() as Product;
-            tx.update(prodRef, {
+            await updateDoc(prodRef, {
               stock: (pData.stock || 0) + item.quantity,
               isAvailable: true,
               updatedAt: now,
             });
           }
+        } catch (pErr) {
+          console.warn('Stock restore error:', pErr);
         }
       }
+    }
 
-      tx.update(orderRef, {
-        status: newStatus,
-        rejectReason: rejectReason || (newStatus === 'REJECTED' ? '선생님 확인 후 취소되었습니다' : ''),
-        updatedAt: now,
-      });
+    // Update order status in Firestore
+    await updateDoc(orderRef, {
+      status: newStatus,
+      rejectReason: rejectReason || (newStatus === 'REJECTED' ? '선생님 확인 후 취소되었습니다' : ''),
+      updatedAt: now,
     });
   } catch (error) {
-    console.warn('Transaction fallback for order update:', error);
-    try {
-      await updateDoc(orderRef, {
-        status: newStatus,
-        rejectReason: rejectReason || '',
-        updatedAt: now,
-      });
-    } catch (upErr) {
-      handleFirestoreError(upErr, OperationType.UPDATE, `${ORDERS_COLLECTION}/${order.id}`);
-    }
+    console.error('Order update error:', error);
   }
 }
 
