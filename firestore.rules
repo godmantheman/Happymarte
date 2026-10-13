@@ -1,0 +1,35 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny for unhandled
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Products: readable by everyone, writeable for mart operations
+    match /products/{productId} {
+      allow read, write: if true;
+    }
+
+    // Orders: students create orders, teacher approves / rejects
+    match /orders/{orderId} {
+      allow read, write: if true;
+    }
+
+    // Students / Members: name login & friends money management
+    match /students/{studentId} {
+      allow read, write: if true;
+    }
+
+    // Store Configuration
+    match /storeConfig/{configId} {
+      allow read, write: if true;
+    }
+
+    // Connection test document
+    match /test/{docId} {
+      allow read, write: if true;
+    }
+  }
+}

@@ -1,0 +1,184 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "행복마트에서 판매되는 물품 (간식, 학용품, 특별활동 쿠폰 등)",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "물품 이름",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "price": {
+          "type": "number",
+          "description": "가격 (행복머니 단위)"
+        },
+        "category": {
+          "type": "string",
+          "description": "카테고리 (간식, 문구, 쿠폰, 장난감 등)",
+          "maxLength": 50
+        },
+        "stock": {
+          "type": "number",
+          "description": "재고 수량"
+        },
+        "emoji": {
+          "type": "string",
+          "description": "대표 이모지 아이콘",
+          "maxLength": 10
+        },
+        "description": {
+          "type": "string",
+          "description": "물품 설명",
+          "maxLength": 500
+        },
+        "isAvailable": {
+          "type": "boolean",
+          "description": "판매 가능 여부"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "생성 일시"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "수정 일시"
+        }
+      },
+      "required": ["name", "price", "stock", "category", "isAvailable"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "학생이 신청한 물품 구매 주문 내역",
+      "type": "object",
+      "properties": {
+        "studentName": {
+          "type": "string",
+          "description": "구매 학생 이름",
+          "minLength": 1,
+          "maxLength": 50
+        },
+        "studentId": {
+          "type": "string",
+          "description": "학생 고유 식별자",
+          "maxLength": 100
+        },
+        "itemsSummary": {
+          "type": "string",
+          "description": "주문 물품 요약 텍스트",
+          "maxLength": 200
+        },
+        "totalPrice": {
+          "type": "number",
+          "description": "총 결제 행복머니"
+        },
+        "memo": {
+          "type": "string",
+          "description": "학생이 남긴 메모 또는 요청사항",
+          "maxLength": 300
+        },
+        "status": {
+          "type": "string",
+          "description": "주문 상태 (PENDING, APPROVED, COMPLETED, REJECTED)",
+          "enum": ["PENDING", "APPROVED", "COMPLETED", "REJECTED"]
+        },
+        "rejectReason": {
+          "type": "string",
+          "description": "선생님의 주문 거부 사유",
+          "maxLength": 300
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "주문 일시"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "상태 변경 일시"
+        }
+      },
+      "required": ["studentName", "totalPrice", "status", "createdAt"]
+    },
+    "Student": {
+      "title": "Student",
+      "description": "중학교 2학년 특수학급 학생 정보 및 행복머니 잔액",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "학생 이름",
+          "minLength": 1,
+          "maxLength": 50
+        },
+        "grade": {
+          "type": "string",
+          "description": "학년 (예: 중학교 2학년)",
+          "maxLength": 50
+        },
+        "balance": {
+          "type": "number",
+          "description": "현재 보유한 전용 전용돈 (행복머니)"
+        },
+        "avatar": {
+          "type": "string",
+          "description": "학생 대표 아바타 또는 캐릭터",
+          "maxLength": 50
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "등록 일시"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "수정 일시"
+        }
+      },
+      "required": ["name", "balance"]
+    },
+    "StoreConfig": {
+      "title": "StoreConfig",
+      "description": "행복마트 운영 설정",
+      "type": "object",
+      "properties": {
+        "isOpen": {
+          "type": "boolean",
+          "description": "마트 오픈 상태"
+        },
+        "storeNotice": {
+          "type": "string",
+          "description": "학생들을 위한 공지사항",
+          "maxLength": 300
+        },
+        "currencyUnit": {
+          "type": "string",
+          "description": "화폐 단위 명칭 (예: 행복머니)",
+          "maxLength": 20
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "설정 변경 일시"
+        }
+      },
+      "required": ["isOpen", "currencyUnit"]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "행복마트 상품 목록"
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "학생 주문 신청 및 처리 로그"
+    },
+    "/students/{studentId}": {
+      "schema": "Student",
+      "description": "특수학급 학생 명부 및 전용머니 잔고"
+    },
+    "/storeConfig/{configId}": {
+      "schema": "StoreConfig",
+      "description": "마트 운영 설정 (오픈 여부, 공지사항 등)"
+    }
+  }
+}

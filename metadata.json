@@ -1,0 +1,6 @@
+{
+  "name": "행복마트 - 중2 특수학급 전용 마켓",
+  "description": "중학교 2학년 특수학급 전용 화폐로 물품을 구매하고, 선생님이 실시간으로 주문 승인/거부 및 물품을 관리하는 행복마트 웹 애플리케이션",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
