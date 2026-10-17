@@ -1,7 +1,3 @@
-/**
- * 행복마트 (중학교 2학년 특수학급 전용 마켓)
- * 메인 애플리케이션 컴포넌트
- */
 import React, { useEffect, useState, useRef } from 'react';
 import {
   Product,
@@ -27,53 +23,59 @@ import { CartDrawer } from './components/CartDrawer';
 import { OrderHistoryModal } from './components/OrderHistoryModal';
 import { AdminPanel } from './components/AdminPanel';
 import { NameLoginModal } from './components/NameLoginModal';
+import { KioskView } from './components/KioskView';
 import { playNewOrderChime } from './utils/audio';
-import { Sparkles, ShoppingBag, Clock, ShieldCheck, UserCheck, HeartHandshake } from 'lucide-react';
+import { AvatarBadgeIcon, Coin3DIcon } from './components/Icons3D';
+import {
+  ShoppingBag,
+  Clock,
+  ShieldCheck,
+  UserCheck,
+  LogOut,
+  CheckCircle2,
+  Package,
+} from 'lucide-react';
 
 const LOCAL_USER_NAME_KEY = 'happy_mart_user_name';
 
 export default function App() {
-  // App state
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [config, setConfig] = useState<StoreConfig>(TEMPLATE_CONFIG);
 
-  // Name-based logged in user state (null = Guest Mode)
   const [loggedInUser, setLoggedInUser] = useState<Student | null>(null);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
-
-  // Admin Mode
   const [isAdminMode, setIsAdminMode] = useState<boolean>(false);
+  const [isKioskMode, setIsKioskMode] = useState<boolean>(false);
 
-  // Cart
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
-
-  // Modals
   const [isOrderHistoryOpen, setIsOrderHistoryOpen] = useState<boolean>(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Filters & Sound
   const [selectedCategory, setSelectedCategory] = useState<string>('전체');
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
 
-  // Incoming order chime tracker
   const prevPendingCountRef = useRef<number>(0);
 
-  // 1. Initial Setup and Firebase Listeners
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage((prev) => (prev === msg ? null : prev));
+    }, 2800);
+  };
+
   useEffect(() => {
     testConnection();
     seedInitialDataIfNeeded();
 
-    // Subscriptions
     const unsubProducts = subscribeProducts((items) => {
       setProducts(items);
     });
 
     const unsubStudents = subscribeStudents((list) => {
       setStudents(list);
-
-      // Keep loggedInUser updated if balance or data changes in Firestore
       setLoggedInUser((curr) => {
         if (!curr) return null;
         const fresh = list.find((s) => s.id === curr.id || s.name === curr.name);
@@ -87,8 +89,6 @@ export default function App() {
 
     const unsubOrders = subscribeOrders((orderList) => {
       setOrders(orderList);
-
-      // Play chime if new pending order arrived
       const currentPending = orderList.filter((o) => o.status === 'PENDING').length;
       if (currentPending > prevPendingCountRef.current && soundEnabled) {
         playNewOrderChime();
@@ -96,7 +96,6 @@ export default function App() {
       prevPendingCountRef.current = currentPending;
     });
 
-    // Check stored user name
     const storedName = localStorage.getItem(LOCAL_USER_NAME_KEY);
     if (storedName) {
       loginByName(storedName)
@@ -104,12 +103,8 @@ export default function App() {
           setLoggedInUser(user);
         })
         .catch(() => {
-          // If login fails, default to guest mode without forcing modal
           setIsLoginModalOpen(false);
         });
-    } else {
-      // Default to opening modal, but user can easily choose guest mode
-      setIsLoginModalOpen(true);
     }
 
     return () => {
@@ -120,31 +115,28 @@ export default function App() {
     };
   }, [soundEnabled]);
 
-  // Handle Name Login
   const handleNameLogin = async (name: string) => {
     const user = await loginByName(name);
     setLoggedInUser(user);
     localStorage.setItem(LOCAL_USER_NAME_KEY, user.name);
     setIsLoginModalOpen(false);
+    showToast(`${user.name} 로그인 완료`);
   };
 
-  // Handle Guest Mode (no login required)
   const handleGuestMode = () => {
     localStorage.removeItem(LOCAL_USER_NAME_KEY);
     setLoggedInUser(null);
     setIsLoginModalOpen(false);
   };
 
-  // Handle Logout
   const handleLogout = () => {
     localStorage.removeItem(LOCAL_USER_NAME_KEY);
     setLoggedInUser(null);
     setIsAdminMode(false);
     setCart([]);
-    setIsLoginModalOpen(true);
+    showToast('로그아웃되었습니다');
   };
 
-  // Cart Handlers
   const handleAddToCart = (product: Product) => {
     setCart((prev) => {
       const existing = prev.find((item) => item.product.id === product.id);
@@ -158,6 +150,7 @@ export default function App() {
       }
       return [...prev, { product, quantity: 1 }];
     });
+    showToast(`${product.name} 담김`);
   };
 
   const handleUpdateCartQuantity = (productId: string, delta: number) => {
@@ -182,7 +175,6 @@ export default function App() {
     setCart([]);
   };
 
-  // Order Submission Handler
   const handleSubmitOrder = async (student: Student, memo: string) => {
     const orderItems = cart.map((c) => ({
       productId: c.product.id,
@@ -190,6 +182,7 @@ export default function App() {
       price: c.product.price,
       quantity: c.quantity,
       emoji: c.product.emoji,
+      ...(c.product.imageUrl ? { imageUrl: c.product.imageUrl } : {}),
     }));
 
     const itemsSummary = cart
@@ -210,7 +203,6 @@ export default function App() {
       memo: memo.trim(),
     });
 
-    // Immediately update local balance state so money decreases on screen without waiting
     setLoggedInUser((curr) => {
       if (!curr) return null;
       if (curr.id === student.id || curr.name.trim() === student.name.trim()) {
@@ -237,7 +229,6 @@ export default function App() {
     );
   };
 
-  // Admin access toggle
   const isTeacher = loggedInUser?.name === '방소정' || loggedInUser?.role === 'TEACHER';
 
   const handleToggleAdminMode = () => {
@@ -247,14 +238,22 @@ export default function App() {
       if (isTeacher) {
         setIsAdminMode(true);
       } else {
-        // Teacher not logged in: inform and open name modal so they can type '방소정'
-        alert('선생님 권한(방소정)으로 로그인 후 이용할 수 있습니다.');
         setIsLoginModalOpen(true);
       }
     }
   };
 
-  // Filter products by category
+  const handleScrollToSection = (sectionId: string) => {
+    if (sectionId === 'top') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    const el = document.getElementById(sectionId);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   const filteredProducts = products.filter((p) => {
     if (selectedCategory === '전체') return true;
     return p.category === selectedCategory;
@@ -264,8 +263,14 @@ export default function App() {
   const pendingOrdersCount = orders.filter((o) => o.status === 'PENDING').length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-amber-50/70 via-orange-50/30 to-amber-50/50 flex flex-col font-sans">
-      {/* Teacher Admin Panel Full View */}
+    <div id="top" className="min-h-screen bg-[#FFFDF7] text-stone-900 flex flex-col font-sans">
+      {toastMessage && (
+        <div className="fixed top-24 right-6 z-50 bg-gradient-to-b from-amber-300 to-amber-400 text-amber-950 border-2 border-b-4 border-amber-700 px-4 py-2.5 rounded-2xl shadow-xl text-xs font-black flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
       {isAdminMode ? (
         <AdminPanel
           orders={orders}
@@ -276,12 +281,13 @@ export default function App() {
           currentUserName={loggedInUser?.name || '방소정'}
           onLogout={handleLogout}
         />
-      ) : (
+      ) : isKioskMode ? (
         <>
-          {/* Main Mart Store View */}
           <Header
             isAdminMode={isAdminMode}
             onToggleAdminMode={handleToggleAdminMode}
+            isKioskMode={isKioskMode}
+            onToggleKioskMode={() => setIsKioskMode((prev) => !prev)}
             loggedInUser={loggedInUser}
             onLogout={handleLogout}
             onOpenLoginModal={() => setIsLoginModalOpen(true)}
@@ -292,179 +298,150 @@ export default function App() {
             onOpenOrderHistory={() => setIsOrderHistoryOpen(true)}
             soundEnabled={soundEnabled}
             onToggleSound={() => setSoundEnabled(!soundEnabled)}
+            onScrollToSection={handleScrollToSection}
+          />
+          <KioskView
+            products={products}
+            cart={cart}
+            onAddToCart={handleAddToCart}
+            onUpdateQuantity={handleUpdateCartQuantity}
+            onRemoveItem={handleRemoveFromCart}
+            onClearCart={handleClearCart}
+            loggedInUser={loggedInUser}
+            onOpenLoginModal={() => setIsLoginModalOpen(true)}
+            config={config}
+            onSubmitOrder={handleSubmitOrder}
+            onExitKiosk={() => setIsKioskMode(false)}
+          />
+        </>
+      ) : (
+        <>
+          <Header
+            isAdminMode={isAdminMode}
+            onToggleAdminMode={handleToggleAdminMode}
+            isKioskMode={isKioskMode}
+            onToggleKioskMode={() => setIsKioskMode((prev) => !prev)}
+            loggedInUser={loggedInUser}
+            onLogout={handleLogout}
+            onOpenLoginModal={() => setIsLoginModalOpen(true)}
+            config={config}
+            cartCount={cartTotalCount}
+            onOpenCart={() => setIsCartOpen(true)}
+            pendingOrdersCount={pendingOrdersCount}
+            onOpenOrderHistory={() => setIsOrderHistoryOpen(true)}
+            soundEnabled={soundEnabled}
+            onToggleSound={() => setSoundEnabled(!soundEnabled)}
+            onScrollToSection={handleScrollToSection}
           />
 
-          {/* Store Announcement Banner */}
-          {config.storeNotice && (
-            <div className="bg-gradient-to-r from-amber-400 via-orange-400 to-yellow-400 text-amber-950 px-4 py-2.5 shadow-xs">
-              <div className="max-w-7xl mx-auto flex items-center justify-center text-xs sm:text-sm font-black space-x-2 text-center">
-                <Sparkles className="w-4 h-4 shrink-0 text-white animate-spin" />
-                <span>{config.storeNotice}</span>
+          <main
+            id="catalog-grid"
+            className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full space-y-6"
+          >
+            {/* 3D Tactile Toolbar: Categories + User/Balance/Admin Bar */}
+            <div className="bg-gradient-to-b from-sky-100 to-sky-200/80 rounded-3xl p-4 border-2 border-b-[7px] border-sky-300 shadow-[0_8px_20px_rgba(14,165,233,0.12),inset_0_2px_0_rgba(255,255,255,0.85)] flex flex-wrap items-center justify-between gap-4">
+              {/* 3D Category Buttons */}
+              <div className="flex items-center gap-2 overflow-x-auto py-0.5">
+                {(['전체', '간식', '문구류', '특별쿠폰', '장난감', '기타'] as const).map(
+                  (cat) => {
+                    const isSelected = selectedCategory === cat;
+                    return (
+                      <button
+                        key={cat}
+                        onClick={() => setSelectedCategory(cat)}
+                        className={`px-4 py-2.5 rounded-2xl font-black text-xs sm:text-sm whitespace-nowrap shrink-0 border-2 border-b-[5px] transition-all active:translate-y-0.5 cursor-pointer ${
+                          isSelected
+                            ? 'bg-gradient-to-b from-amber-400 to-orange-500 border-orange-700 text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.5)]'
+                            : 'bg-white hover:bg-amber-50 border-sky-300 text-sky-950 shadow-[inset_0_2px_0_rgba(255,255,255,0.9)]'
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    );
+                  }
+                )}
+              </div>
+
+              {/* Active User / Balance / Login 3D Controls */}
+              <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                {loggedInUser ? (
+                  <>
+                    <div className="flex items-center gap-2.5 px-4 py-2 rounded-2xl bg-white border-2 border-b-4 border-sky-300">
+                      <AvatarBadgeIcon
+                        avatar={loggedInUser.avatar}
+                        isTeacher={isTeacher}
+                        size="sm"
+                      />
+                      <span className="text-sm font-black text-stone-900">
+                        {loggedInUser.name}
+                      </span>
+                      {!isTeacher && (
+                        <div className="flex items-center gap-1 pl-2 border-l-2 border-sky-100">
+                          <Coin3DIcon className="w-4 h-4" />
+                          <span className="text-sm font-black font-mono tabular-nums text-amber-700">
+                            {loggedInUser.balance.toLocaleString()}
+                            {config.currencyUnit}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {isTeacher && (
+                      <button
+                        onClick={() => setIsAdminMode(true)}
+                        className="px-4 py-2.5 rounded-2xl bg-gradient-to-b from-violet-500 to-purple-600 hover:from-violet-400 hover:to-purple-500 text-white border-2 border-b-4 border-purple-900 font-black text-xs sm:text-sm flex items-center gap-1.5 shadow-[inset_0_2px_0_rgba(255,255,255,0.45)] active:translate-y-0.5 transition-all whitespace-nowrap shrink-0"
+                      >
+                        <ShieldCheck className="w-4 h-4" />
+                        <span>관리자 패널</span>
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => setIsLoginModalOpen(true)}
+                      className="px-3.5 py-2.5 rounded-2xl bg-white hover:bg-amber-50 text-sky-900 border-2 border-b-4 border-sky-300 font-black text-xs active:translate-y-0.5 transition-all whitespace-nowrap shrink-0"
+                    >
+                      변경
+                    </button>
+
+                    <button
+                      onClick={handleLogout}
+                      title="로그아웃"
+                      className="p-2.5 rounded-2xl bg-white hover:bg-rose-50 hover:text-rose-600 text-stone-500 border-2 border-b-4 border-sky-300 active:translate-y-0.5 transition-all"
+                    >
+                      <LogOut className="w-4 h-4" />
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => setIsLoginModalOpen(true)}
+                    className="px-4 py-2.5 rounded-2xl bg-gradient-to-b from-amber-300 to-amber-400 hover:from-amber-200 hover:to-amber-300 text-amber-950 border-2 border-b-4 border-amber-700 font-black text-xs sm:text-sm flex items-center gap-2 shadow-[inset_0_2px_0_rgba(255,255,255,0.7)] active:translate-y-0.5 transition-all whitespace-nowrap shrink-0"
+                  >
+                    <UserCheck className="w-4 h-4 text-amber-800" />
+                    <span>이름 로그인</span>
+                  </button>
+                )}
               </div>
             </div>
-          )}
 
-          {/* Main Hero & User Status Bar */}
-          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full space-y-6">
-            {/* User Greeting & Status Banner */}
-            <section className="bg-white rounded-3xl p-6 sm:p-8 border-2 border-amber-200/90 shadow-md shadow-amber-200/20 relative overflow-hidden">
-              <div className="absolute -right-6 -bottom-6 text-8xl opacity-10 select-none pointer-events-none">
-                🏪
-              </div>
-
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center space-x-4">
-                  <div
-                    onClick={() => setIsLoginModalOpen(true)}
-                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-amber-100 border-2 border-amber-300 flex items-center justify-center text-4xl sm:text-5xl shadow-inner cursor-pointer hover:scale-105 transition-transform"
-                    title={loggedInUser ? '이름 변경/로그아웃' : '이름으로 로그인'}
-                  >
-                    {loggedInUser?.avatar || (isTeacher ? '👩‍🏫' : '🛍️')}
-                  </div>
-
-                  <div className="space-y-1">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-orange-100 text-orange-800 border border-orange-200">
-                        중2 특수학급
-                      </span>
-                      {isTeacher && (
-                        <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-purple-600 text-white">
-                          방소정 선생님 (관리자)
-                        </span>
-                      )}
-                      {!loggedInUser && (
-                        <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-300">
-                          게스트 (손님) 모드
-                        </span>
-                      )}
-                      <button
-                        onClick={() => setIsLoginModalOpen(true)}
-                        className="text-xs font-bold text-amber-700 underline hover:text-amber-900"
-                      >
-                        {loggedInUser ? '[이름 변경/로그아웃]' : '[이름 로그인하기]'}
-                      </button>
-                    </div>
-
-                    <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-                      {loggedInUser ? (
-                        <>
-                          <span className={isTeacher ? 'text-purple-700' : 'text-amber-800'}>
-                            {loggedInUser.name}
-                          </span>{' '}
-                          {isTeacher ? '선생님, 마트를 관리해보세요!' : '학생, 환영해요! 👋'}
-                        </>
-                      ) : (
-                        <span>게스트 모드: 자유롭게 물품을 담아보세요! 🛒</span>
-                      )}
-                    </h2>
-
-                    <p className="text-xs sm:text-sm text-slate-500 font-medium">
-                      {isTeacher
-                        ? '선생님 권한으로 물품을 등록하거나 실시간 주문 승인/거부 및 친구들의 행복머니를 설정할 수 있습니다.'
-                        : !loggedInUser
-                        ? '별도 로그인이나 돈 없이 결제할 때 이름만 적으면 선생님이 확인 후 수락해 줍니다!'
-                        : '열심히 모은 행복머니로 사고 싶은 물품을 고르고 선생님께 구매를 신청해보세요.'}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Right Side Card: Teacher Panel Jump / Wallet / Guest Guide */}
-                <div>
-                  {isTeacher ? (
-                    <button
-                      onClick={() => setIsAdminMode(true)}
-                      className="bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-800 hover:to-indigo-800 text-white rounded-2xl p-4 sm:p-5 shadow-lg shadow-purple-500/25 flex items-center space-x-3 transition-transform active:scale-95 text-left"
-                    >
-                      <ShieldCheck className="w-8 h-8 text-amber-300" />
-                      <div>
-                        <span className="text-2xs text-purple-200 font-bold block">관리자 제어 센터</span>
-                        <span className="text-sm font-black">선생님 관리자 패널 열기 ⚙️</span>
-                        <span className="text-2xs text-amber-300 font-bold block mt-0.5">
-                          주문 수락 & 친구들 돈 설정
-                        </span>
-                      </div>
-                    </button>
-                  ) : loggedInUser ? (
-                    <div className="bg-gradient-to-br from-amber-500 to-orange-500 text-white rounded-2xl p-4 sm:p-5 shadow-lg shadow-orange-500/20 flex flex-col justify-center min-w-[200px]">
-                      <span className="text-xs text-amber-100 font-bold">내 행복머니 지갑</span>
-                      <div className="flex items-baseline space-x-1 mt-1">
-                        <span className="text-2xl sm:text-3xl font-black">
-                          {loggedInUser.balance.toLocaleString()}
-                        </span>
-                        <span className="text-sm font-bold text-amber-100">
-                          {config.currencyUnit}
-                        </span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="bg-gradient-to-br from-purple-700 to-indigo-700 text-white rounded-2xl p-4 sm:p-5 shadow-lg shadow-purple-500/20 flex flex-col justify-center min-w-[200px] border border-purple-500/40">
-                      <span className="text-xs text-purple-200 font-bold flex items-center space-x-1">
-                        <HeartHandshake className="w-3.5 h-3.5 text-amber-300" />
-                        <span>게스트 바로 결제 지원</span>
-                      </span>
-                      <span className="text-sm font-black mt-1 text-amber-300">
-                        돈 필요 없음!
-                      </span>
-                      <span className="text-2xs text-purple-200 mt-0.5">
-                        결제 시 이름만 적으면 선생님이 수락해요
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </section>
-
-            {/* Closed store warning if mart is paused */}
             {!config.isOpen && (
-              <div className="bg-rose-50 border-2 border-rose-300 rounded-3xl p-5 flex items-center space-x-4 text-rose-800">
-                <Clock className="w-8 h-8 text-rose-500 shrink-0" />
-                <div>
-                  <h4 className="font-black text-base">현재 행복마트는 준비 중입니다.</h4>
-                  <p className="text-xs font-medium">
-                    물품 구경은 가능하지만, 선생님이 마트를 열어줄 때까지 잠시만 기다려주세요!
-                  </p>
-                </div>
+              <div className="bg-rose-50 border-2 border-b-4 border-rose-300 rounded-3xl p-4 flex items-center gap-3 text-rose-900 text-xs font-black">
+                <Clock className="w-5 h-5 text-rose-600 shrink-0" />
+                <span>현재 매장 준비 중입니다.</span>
               </div>
             )}
 
-            {/* Category Filter Tabs */}
-            <div className="flex items-center space-x-2 overflow-x-auto pb-2 scrollbar-none">
-              {(['전체', '간식', '문구류', '특별쿠폰', '장난감', '기타'] as const).map(
-                (cat) => {
-                  const isSelected = selectedCategory === cat;
-                  return (
-                    <button
-                      key={cat}
-                      onClick={() => setSelectedCategory(cat)}
-                      className={`px-4 sm:px-5 py-2.5 rounded-2xl font-black text-xs sm:text-sm whitespace-nowrap transition-all shadow-xs active:scale-95 ${
-                        isSelected
-                          ? 'bg-amber-500 text-white shadow-amber-500/30'
-                          : 'bg-white hover:bg-amber-100 text-slate-700 border border-amber-200'
-                      }`}
-                    >
-                      {cat === '전체' && '🌟 전체 보기'}
-                      {cat === '간식' && '🍫 맛있는 간식'}
-                      {cat === '문구류' && '✏️ 학용품 & 문구'}
-                      {cat === '특별쿠폰' && '🎟️ 특별활동 쿠폰'}
-                      {cat === '장난감' && '🧩 장난감 & 힐링'}
-                      {cat === '기타' && '🎁 기타 선물'}
-                    </button>
-                  );
-                }
-              )}
-            </div>
-
-            {/* Products Grid */}
+            {/* Products Grid with 3D Models & Custom Image Support */}
             {filteredProducts.length === 0 ? (
-              <div className="bg-white rounded-3xl border border-amber-200 p-16 text-center space-y-3">
-                <span className="text-5xl">🎁</span>
-                <h3 className="text-lg font-black text-slate-700">등록된 물품이 없습니다.</h3>
-                <p className="text-xs text-slate-400">
-                  방소정 선생님 관리자 패널에서 새로운 물품을 추가해보세요!
-                </p>
+              <div className="bg-white rounded-3xl border-2 border-b-[6px] border-amber-200 p-16 text-center space-y-2">
+                <div className="w-14 h-14 rounded-3xl bg-amber-100 border-2 border-b-4 border-amber-300 text-amber-600 flex items-center justify-center mx-auto">
+                  <Package className="w-7 h-7" />
+                </div>
+                <h3 className="text-sm font-black text-stone-700">
+                  등록된 물품이 없습니다
+                </h3>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredProducts.map((prod) => {
                   const cartItem = cart.find((c) => c.product.id === prod.id);
                   return (
@@ -482,25 +459,26 @@ export default function App() {
             )}
           </main>
 
-          {/* Floating Cart Trigger on Mobile / Bottom Action */}
           {cartTotalCount > 0 && !isTeacher && (
-            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-md w-[92%]">
+            <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 max-w-sm w-[92%]">
               <button
                 onClick={() => setIsCartOpen(true)}
-                className="w-full py-4 px-6 rounded-3xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white font-black text-base shadow-xl shadow-orange-500/30 flex items-center justify-between animate-bounce"
+                className="w-full py-3.5 px-5 rounded-3xl bg-gradient-to-b from-orange-400 to-orange-500 hover:from-orange-300 hover:to-orange-400 text-white border-2 border-b-[6px] border-orange-800 font-black text-sm shadow-2xl flex items-center justify-between active:translate-y-0.5 transition-all"
               >
-                <div className="flex items-center space-x-2">
-                  <ShoppingBag className="w-6 h-6" />
-                  <span>장바구니 확인하기 ({cartTotalCount}개)</span>
+                <div className="flex items-center gap-2">
+                  <ShoppingBag className="w-5 h-5 stroke-[2.5]" />
+                  <span>장바구니</span>
+                  <span className="font-mono tabular-nums bg-white text-orange-600 px-2 py-0.5 rounded-xl font-black text-xs">
+                    {cartTotalCount}
+                  </span>
                 </div>
-                <span className="bg-white/20 px-3 py-1 rounded-xl text-sm font-bold">
-                  주문 신청 🚀
+                <span className="bg-amber-200 text-amber-950 border border-amber-600 px-3.5 py-1 rounded-2xl text-xs font-black">
+                  결제하기
                 </span>
               </button>
             </div>
           )}
 
-          {/* Cart Drawer */}
           <CartDrawer
             isOpen={isCartOpen}
             onClose={() => setIsCartOpen(false)}
@@ -515,7 +493,6 @@ export default function App() {
             onOpenOrderHistory={() => setIsOrderHistoryOpen(true)}
           />
 
-          {/* Order History Modal */}
           <OrderHistoryModal
             isOpen={isOrderHistoryOpen}
             onClose={() => setIsOrderHistoryOpen(false)}
@@ -526,7 +503,6 @@ export default function App() {
         </>
       )}
 
-      {/* Name Login Modal with Guest browsing option */}
       <NameLoginModal
         isOpen={isLoginModalOpen}
         onLogin={handleNameLogin}

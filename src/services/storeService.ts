@@ -143,8 +143,8 @@ export async function loginByName(rawName: string): Promise<Student> {
       if (isTeacher && data.role !== 'TEACHER') {
         await updateDoc(doc(db, STUDENTS_COLLECTION, docSnap.id), {
           role: 'TEACHER',
-          avatar: '👩‍🏫',
-          grade: '특수교사',
+          avatar: 'teacher',
+          grade: '교사',
           updatedAt: new Date().toISOString(),
         });
       }
@@ -157,10 +157,10 @@ export async function loginByName(rawName: string): Promise<Student> {
       id: newId,
       name,
       role: isTeacher ? 'TEACHER' : 'STUDENT',
-      grade: isTeacher ? '특수교사' : '중학교 2학년',
+      grade: isTeacher ? '교사' : '2학년',
       classroom: '특수학급',
       balance: isTeacher ? 0 : 2000,
-      avatar: isTeacher ? '👩‍🏫' : '🧒',
+      avatar: isTeacher ? 'teacher' : 'star',
       totalEarned: isTeacher ? 0 : 2000,
       totalSpent: 0,
       createdAt: new Date().toISOString(),
@@ -176,10 +176,10 @@ export async function loginByName(rawName: string): Promise<Student> {
       id: `fallback-${Date.now()}`,
       name,
       role: isTeacher ? 'TEACHER' : 'STUDENT',
-      grade: isTeacher ? '특수교사' : '중학교 2학년',
+      grade: isTeacher ? '교사' : '2학년',
       classroom: '특수학급',
       balance: isTeacher ? 0 : 2000,
-      avatar: isTeacher ? '👩‍🏫' : '🧒',
+      avatar: isTeacher ? 'teacher' : 'star',
     };
   }
 }
@@ -632,14 +632,14 @@ export async function deleteProduct(id: string): Promise<void> {
 /**
  * Add new student to Firestore
  */
-export async function addStudent(name: string, initialBalance: number = 2000, avatar: string = '⭐'): Promise<string> {
+export async function addStudent(name: string, initialBalance: number = 2000, avatar: string = 'star'): Promise<string> {
   const id = `student-${Date.now()}`;
   const now = new Date().toISOString();
   const newStudent: Student = {
     id,
     name: name.trim(),
     role: name.trim() === '방소정' ? 'TEACHER' : 'STUDENT',
-    grade: name.trim() === '방소정' ? '특수교사' : '중학교 2학년',
+    grade: name.trim() === '방소정' ? '교사' : '2학년',
     classroom: '특수학급',
     balance: initialBalance,
     avatar,

@@ -34,6 +34,10 @@
           "description": "물품 설명",
           "maxLength": 500
         },
+        "imageUrl": {
+          "type": "string",
+          "description": "선생님이 업로드한 커스텀 물품 이미지 (Data URL 또는 이미지 주소)"
+        },
         "isAvailable": {
           "type": "boolean",
           "description": "판매 가능 여부"

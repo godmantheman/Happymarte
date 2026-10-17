@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Student } from '../types';
-import { User, Sparkles, Shield, ArrowRight, Loader2, ShoppingBag, X } from 'lucide-react';
+import { User, ArrowRight, Loader2, ShoppingBag, X } from 'lucide-react';
+import { AvatarBadgeIcon, Coin3DIcon, Store3DLogo } from './Icons3D';
 
 interface NameLoginModalProps {
   isOpen: boolean;
@@ -28,7 +29,7 @@ export const NameLoginModal: React.FC<NameLoginModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nameInput.trim()) {
-      setErrorMsg('이름을 입력해주세요!');
+      setErrorMsg('이름을 입력해주세요.');
       return;
     }
 
@@ -38,7 +39,7 @@ export const NameLoginModal: React.FC<NameLoginModalProps> = ({
       await onLogin(nameInput.trim());
     } catch (err) {
       console.error(err);
-      setErrorMsg('로그인 중 문제가 발생했습니다. 다시 시도해주세요.');
+      setErrorMsg('로그인 중 오류가 발생했습니다.');
     } finally {
       setLoading(false);
     }
@@ -51,44 +52,42 @@ export const NameLoginModal: React.FC<NameLoginModalProps> = ({
       await onLogin(name);
     } catch (err) {
       console.error(err);
-      setErrorMsg('로그인 중 문제가 발생했습니다.');
+      setErrorMsg('로그인 중 오류가 발생했습니다.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl border-4 border-amber-300 overflow-hidden relative">
-        {/* Close Button if applicable */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-sky-950/50 backdrop-blur-xs animate-in fade-in duration-150">
+      <div className="bg-[#FFFDF7] rounded-[32px] max-w-md w-full shadow-2xl border-4 border-b-[10px] border-amber-400 overflow-hidden relative">
         {allowClose && (
           <button
             onClick={onClose || onGuestMode}
-            className="absolute top-4 right-4 z-10 p-2 rounded-2xl bg-black/20 hover:bg-black/30 text-white transition-colors"
-            title="게스트로 닫기"
+            className="absolute top-4 right-4 z-10 p-2 rounded-2xl bg-white hover:bg-amber-50 text-amber-950 border-2 border-b-4 border-amber-700 active:translate-y-0.5 transition-all"
+            title="닫기"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         )}
 
-        {/* Banner */}
-        <div className="bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 p-6 text-white text-center relative">
-          <div className="w-16 h-16 rounded-3xl bg-white/20 backdrop-blur-xs mx-auto flex items-center justify-center text-3xl mb-3 shadow-inner">
-            🏪
+        {/* 3D Tactile Header */}
+        <div className="bg-gradient-to-b from-amber-300 via-amber-400 to-amber-500 p-6 text-amber-950 flex items-center gap-3.5 border-b-[6px] border-amber-700 shadow-[inset_0_3px_0_rgba(255,255,255,0.75)]">
+          <div className="w-12 h-12 rounded-2xl bg-white border-2 border-b-4 border-amber-700 flex items-center justify-center shrink-0">
+            <Store3DLogo className="w-8 h-8" />
           </div>
-          <h2 className="text-2xl font-black tracking-tight">행복마트 입장하기</h2>
-          <p className="text-amber-100 text-xs font-semibold mt-1">
-            중학교 2학년 특수학급 전용 물품 구매 마트
-          </p>
+          <div>
+            <h2 className="text-xl font-black tracking-tight">이름 로그인</h2>
+            <p className="text-amber-900/80 font-bold text-xs mt-0.5">
+              방소정 입력 시 선생님 관리자 모드
+            </p>
+          </div>
         </div>
 
         {/* Body */}
-        <div className="p-6 sm:p-7 space-y-5">
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="p-6 space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-3">
             <div>
-              <label className="block text-xs font-black text-slate-700 mb-1.5">
-                내 이름을 입력해주세요:
-              </label>
               <div className="relative">
                 <input
                   type="text"
@@ -97,97 +96,96 @@ export const NameLoginModal: React.FC<NameLoginModalProps> = ({
                     setNameInput(e.target.value);
                     setErrorMsg('');
                   }}
-                  placeholder="예: 방소정 또는 내 이름"
+                  placeholder="이름 입력 (예: 방소정, 김도윤)"
                   autoFocus
                   disabled={loading}
-                  className="w-full px-4 py-3.5 pl-11 rounded-2xl border-2 border-amber-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 focus:outline-hidden text-base font-black text-slate-800 placeholder:text-slate-400 transition-all"
+                  className="w-full px-4 py-3.5 pl-10 rounded-2xl border-2 border-amber-300 focus:border-amber-500 focus:outline-hidden text-sm font-black text-stone-900 bg-white placeholder:text-stone-400"
                 />
-                <User className="w-5 h-5 text-amber-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <User className="w-4 h-4 text-amber-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
               </div>
               {errorMsg && (
-                <p className="text-xs font-bold text-rose-600 mt-1.5">{errorMsg}</p>
+                <p className="text-xs font-black text-rose-600 mt-1.5">{errorMsg}</p>
               )}
             </div>
 
-            {/* Special Teacher Authority Tip */}
-            <div className="p-3 rounded-2xl bg-purple-50 border border-purple-200 text-purple-900 text-xs font-semibold flex items-start space-x-2.5">
-              <Shield className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
-              <div>
-                <span className="font-black text-purple-800">선생님 권한 안내:</span>
-                <p className="mt-0.5 text-purple-700 text-2xs sm:text-xs">
-                  이름에 <strong className="text-purple-950 underline decoration-purple-400">&lsquo;방소정&rsquo;</strong>을 입력하면 자동으로 관리자 권한이 부여됩니다.
-                </p>
-              </div>
-            </div>
-
-            {/* Buttons */}
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               <button
                 type="submit"
                 disabled={loading || !nameInput.trim()}
-                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 disabled:opacity-50 text-white font-black text-sm sm:text-base flex items-center justify-center space-x-2 shadow-lg shadow-orange-500/25 active:scale-98 transition-all"
+                className="w-full py-3.5 rounded-2xl bg-gradient-to-b from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 disabled:opacity-50 border-2 border-b-[5px] border-orange-700 text-white font-black text-sm flex items-center justify-center gap-2 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] active:translate-y-0.5 transition-all"
               >
                 {loading ? (
                   <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <Loader2 className="w-4 h-4 animate-spin" />
                     <span>확인 중...</span>
                   </>
                 ) : (
                   <>
-                    <Sparkles className="w-5 h-5" />
-                    <span>이름으로 마트 입장하기</span>
+                    <span>로그인</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
               </button>
 
-              {/* Guest mode button */}
               <button
                 type="button"
                 onClick={onGuestMode}
-                className="w-full py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs sm:text-sm flex items-center justify-center space-x-1.5 border border-slate-300 transition-colors"
+                disabled={loading}
+                className="w-full py-3 rounded-2xl bg-white hover:bg-sky-50 border-2 border-b-4 border-sky-300 text-sky-900 font-black text-xs flex items-center justify-center gap-2 active:translate-y-0.5 transition-all"
               >
-                <ShoppingBag className="w-4 h-4 text-amber-600" />
-                <span>로그인 없이 게스트로 바로 쇼핑하기 🛒</span>
+                <ShoppingBag className="w-4 h-4 text-sky-600" />
+                <span>로그인 없이 둘러보기</span>
               </button>
             </div>
           </form>
 
-          {/* Quick Select Chips */}
-          <div className="pt-2 border-t border-slate-100">
-            <span className="text-xs font-bold text-slate-400 block mb-2">
-              빠른 선택:
-            </span>
-            <div className="flex flex-wrap gap-1.5">
-              {/* Teacher Bang So-jeong Chip */}
-              <button
-                type="button"
-                disabled={loading}
-                onClick={() => handleQuickSelect('방소정')}
-                className="px-3 py-1.5 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-900 text-xs font-black border border-purple-300 flex items-center space-x-1 transition-all active:scale-95"
-              >
-                <span>👩‍🏫</span>
-                <span>방소정 (선생님)</span>
-              </button>
-
-              {/* Other students */}
-              {registeredStudents
-                .filter((s) => s.name !== '방소정')
-                .slice(0, 5)
-                .map((student) => (
-                  <button
-                    key={student.id}
-                    type="button"
-                    disabled={loading}
-                    onClick={() => handleQuickSelect(student.name)}
-                    className="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold border border-amber-200 flex items-center space-x-1 transition-all active:scale-95"
-                  >
-                    <span>{student.avatar || '🧒'}</span>
-                    <span>{student.name}</span>
-                  </button>
-                ))}
+          {/* Quick Select Registered Students */}
+          {registeredStudents.length > 0 && (
+            <div className="pt-4 border-t-2 border-amber-200/70">
+              <p className="text-xs font-black text-stone-500 mb-2.5">
+                빠른 선택
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-1">
+                {registeredStudents.map((st) => {
+                  const isTeacher = st.name === '방소정' || st.role === 'TEACHER';
+                  return (
+                    <button
+                      key={st.id}
+                      type="button"
+                      disabled={loading}
+                      onClick={() => handleQuickSelect(st.name)}
+                      className={`p-2.5 rounded-2xl border-2 border-b-4 text-left flex items-center gap-2 transition-all active:translate-y-0.5 ${
+                        isTeacher
+                          ? 'border-purple-400 bg-purple-50 hover:bg-purple-100'
+                          : 'border-amber-200 bg-white hover:border-amber-400'
+                      }`}
+                    >
+                      <AvatarBadgeIcon
+                        avatar={st.avatar}
+                        isTeacher={isTeacher}
+                        size="sm"
+                      />
+                      <div className="min-w-0">
+                        <div className="font-black text-xs text-stone-900 truncate">
+                          {st.name}
+                        </div>
+                        <div className="text-2xs font-bold text-amber-700 font-mono tabular-nums flex items-center gap-0.5">
+                          {isTeacher ? (
+                            <span className="text-purple-700">선생님</span>
+                          ) : (
+                            <>
+                              <Coin3DIcon className="w-3 h-3" />
+                              <span>{st.balance.toLocaleString()}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

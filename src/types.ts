@@ -27,6 +27,7 @@ export interface OrderItem {
   price: number;
   quantity: number;
   emoji: string;
+  imageUrl?: string;
 }
 
 export interface Order {
