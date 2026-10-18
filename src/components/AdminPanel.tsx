@@ -1055,7 +1055,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       onClick={() => setProductForm({ ...productForm, imageUrl: '' })}
                       className="text-2xs font-black text-rose-600 hover:underline"
                     >
-                      이미지 제거 (기본 3D 모델 사용)
+                      삭제
                     </button>
                   )}
                 </div>
@@ -1087,7 +1087,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               {/* 3D Model / Icon Selector (used when no custom image is uploaded) */}
               <div>
                 <label className="block text-xs font-black text-stone-700 mb-1.5">
-                  기본 3D 모델 선택 {productForm.imageUrl && '(커스텀 이미지가 우선 적용됨)'}
+                  아이콘 선택
                 </label>
                 <div className="grid grid-cols-4 gap-2">
                   {PRODUCT_ICON_OPTIONS.map((opt) => {
