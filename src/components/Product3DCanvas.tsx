@@ -88,61 +88,6 @@ function addBrightPedestal(group: THREE.Group): THREE.MeshPhysicalMaterial {
   return goldMat;
 }
 
-/**
- * Build a 3D Beveled Showcase Frame with custom uploaded image texture
- */
-function buildCustomImage3DModel(imageUrl: string): {
-  group: THREE.Group;
-  disposeTex: () => void;
-} {
-  const group = new THREE.Group();
-  const goldMat = addBrightPedestal(group);
-
-  const textureLoader = new THREE.TextureLoader();
-  textureLoader.setCrossOrigin('anonymous');
-  const tex = textureLoader.load(imageUrl);
-  tex.colorSpace = THREE.SRGBColorSpace;
-
-  // 3D Rounded Showcase Box Frame
-  const frameGeo = new THREE.BoxGeometry(1.32, 1.12, 0.18);
-  const frameMat = new THREE.MeshPhysicalMaterial({
-    color: 0xfbbf24,
-    metalness: 0.65,
-    roughness: 0.22,
-    clearcoat: 0.8,
-  });
-  const frameMesh = new THREE.Mesh(frameGeo, frameMat);
-  frameMesh.position.y = 0.06;
-  group.add(frameMesh);
-
-  // Front & Back Image Planes
-  const picGeo = new THREE.PlaneGeometry(1.18, 0.98);
-  const picMat = new THREE.MeshBasicMaterial({
-    map: tex,
-  });
-
-  const frontPic = new THREE.Mesh(picGeo, picMat);
-  frontPic.position.set(0, 0.06, 0.095);
-  group.add(frontPic);
-
-  const backPic = new THREE.Mesh(picGeo, picMat);
-  backPic.position.set(0, 0.06, -0.095);
-  backPic.rotation.y = Math.PI;
-  group.add(backPic);
-
-  // Top Crown Star Accent
-  const topGem = new THREE.Mesh(new THREE.OctahedronGeometry(0.14, 0), goldMat);
-  topGem.position.set(0, 0.74, 0);
-  group.add(topGem);
-
-  return {
-    group,
-    disposeTex: () => {
-      tex.dispose();
-      picMat.dispose();
-    },
-  };
-}
 
 function build3DModelByKey(key: ProductIconKey): THREE.Group {
   const group = new THREE.Group();
@@ -550,6 +495,8 @@ export const Product3DCanvas: React.FC<Product3DCanvasProps> = ({
   }, [isHovered]);
 
   useEffect(() => {
+    if (imageUrl) return;
+
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -576,16 +523,7 @@ export const Product3DCanvas: React.FC<Product3DCanvasProps> = ({
     rimLight.position.set(-3, 2, -3);
     scene.add(rimLight);
 
-    let modelGroup: THREE.Group;
-    let disposeCustomTex: (() => void) | null = null;
-
-    if (imageUrl) {
-      const built = buildCustomImage3DModel(imageUrl);
-      modelGroup = built.group;
-      disposeCustomTex = built.disposeTex;
-    } else {
-      modelGroup = build3DModelByKey(resolvedKey);
-    }
+    const modelGroup = build3DModelByKey(resolvedKey);
     scene.add(modelGroup);
 
     const item: RegisteredCard = {
@@ -594,7 +532,7 @@ export const Product3DCanvas: React.FC<Product3DCanvasProps> = ({
       scene,
       camera,
       modelGroup,
-      rotY: imageUrl ? 0 : Math.random() * Math.PI * 2,
+      rotY: Math.random() * Math.PI * 2,
       targetRotX: 0.05,
       currentRotX: 0.05,
       isHovered: false,
@@ -630,7 +568,6 @@ export const Product3DCanvas: React.FC<Product3DCanvasProps> = ({
       canvas.removeEventListener('pointerdown', onPointerDown);
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
-      disposeCustomTex?.();
       modelGroup.traverse((node) => {
         if ((node as THREE.Mesh).isMesh) {
           const m = node as THREE.Mesh;
@@ -639,6 +576,16 @@ export const Product3DCanvas: React.FC<Product3DCanvasProps> = ({
       });
     };
   }, [resolvedKey, imageUrl]);
+
+  if (imageUrl) {
+    return (
+      <img
+        src={imageUrl}
+        alt={name || '물품 이미지'}
+        className="w-full h-full object-contain p-2 select-none pointer-events-none"
+      />
+    );
+  }
 
   return (
     <canvas
