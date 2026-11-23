@@ -14,6 +14,7 @@ import {
 import confetti from 'canvas-confetti';
 import { playPurchaseSuccessSound } from '../utils/audio';
 import { AvatarBadgeIcon, Coin3DIcon, ProductBadgeIcon } from './Icons3D';
+import { CHRISTMAS_CONFETTI_COLORS } from '../utils/seasonTheme';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -25,6 +26,7 @@ interface CartDrawerProps {
   selectedStudent: Student | null;
   onOpenStudentSelector: () => void;
   config: StoreConfig;
+  isChristmas: boolean;
   onSubmitOrder: (student: Student, memo: string) => Promise<void>;
   onOpenOrderHistory: () => void;
 }
@@ -39,6 +41,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   selectedStudent,
   onOpenStudentSelector,
   config,
+  isChristmas,
   onSubmitOrder,
   onOpenOrderHistory,
 }) => {
@@ -88,9 +91,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       setSubmittedStudentName(buyerName);
       playPurchaseSuccessSound();
       confetti({
-        particleCount: 80,
-        spread: 65,
+        particleCount: 90,
+        spread: 70,
         origin: { y: 0.6 },
+        ...(isChristmas ? { colors: CHRISTMAS_CONFETTI_COLORS } : {}),
       });
 
       setSuccessOrderId('SUCCESS');
@@ -105,13 +109,29 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden bg-sky-950/50 backdrop-blur-xs flex justify-end animate-in fade-in duration-150">
-      <div className="bg-[#FFFDF7] w-full max-w-md h-full shadow-2xl flex flex-col justify-between border-l-4 border-amber-300">
+    <div className="fixed inset-0 z-50 overflow-hidden bg-slate-950/65 flex justify-end">
+      <div
+        className={`bg-[#FFFDF9] w-full max-w-md h-full shadow-2xl flex flex-col justify-between border-l-4 ${
+          isChristmas ? 'border-amber-400' : 'border-amber-300'
+        }`}
+      >
         {/* 3D Tactile Header */}
-        <div className="p-5 bg-gradient-to-b from-amber-300 via-amber-400 to-amber-500 text-amber-950 flex items-center justify-between border-b-[6px] border-amber-700 shadow-[inset_0_3px_0_rgba(255,255,255,0.75)]">
+        <div
+          className={`p-5 flex items-center justify-between border-b-[6px] ${
+            isChristmas
+              ? 'bg-gradient-to-b from-red-600 via-red-700 to-rose-800 text-white border-red-950 shadow-[inset_0_3px_0_rgba(255,255,255,0.35)]'
+              : 'bg-gradient-to-b from-amber-300 via-amber-400 to-amber-500 text-amber-950 border-amber-700 shadow-[inset_0_3px_0_rgba(255,255,255,0.75)]'
+          }`}
+        >
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-2xl bg-white border-2 border-b-4 border-amber-700 flex items-center justify-center">
-              <ShoppingBag className="w-5 h-5 text-orange-600" />
+            <div
+              className={`w-9 h-9 rounded-2xl bg-white border-2 border-b-4 flex items-center justify-center ${
+                isChristmas ? 'border-red-950' : 'border-amber-700'
+              }`}
+            >
+              <ShoppingBag
+                className={`w-5 h-5 ${isChristmas ? 'text-red-700' : 'text-orange-600'}`}
+              />
             </div>
             <h2 className="text-lg font-black">장바구니</h2>
           </div>
@@ -120,7 +140,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               setSuccessOrderId(null);
               onClose();
             }}
-            className="p-2 rounded-2xl bg-white hover:bg-amber-50 text-amber-950 border-2 border-b-4 border-amber-700 active:translate-y-0.5 transition-all"
+            className={`p-2 rounded-2xl bg-white hover:bg-amber-50 border-2 border-b-4 active:translate-y-0.5 transition-all cursor-pointer ${
+              isChristmas
+                ? 'text-red-950 border-red-950'
+                : 'text-amber-950 border-amber-700'
+            }`}
           >
             <X className="w-5 h-5" />
           </button>
@@ -129,12 +153,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         {/* Content Body */}
         {successOrderId ? (
           <div className="flex-1 p-8 flex flex-col items-center justify-center text-center space-y-4">
-            <div className="w-16 h-16 rounded-3xl bg-emerald-100 text-emerald-600 border-2 border-b-4 border-emerald-300 flex items-center justify-center">
+            <div className="w-16 h-16 rounded-3xl bg-emerald-100 text-emerald-700 border-2 border-b-4 border-emerald-400 flex items-center justify-center">
               <CheckCircle2 className="w-9 h-9" />
             </div>
-            <h3 className="text-xl font-black text-stone-900">
-              주문 신청 완료
-            </h3>
+            <h3 className="text-xl font-black text-stone-900">주문 신청 완료</h3>
             <p className="text-xs font-bold text-stone-500">
               신청자: <strong className="text-stone-800">{submittedStudentName}</strong>
             </p>
@@ -145,7 +167,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   onClose();
                   onOpenOrderHistory();
                 }}
-                className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-b from-sky-400 to-sky-500 border-2 border-b-4 border-sky-700 text-white font-black text-sm flex items-center justify-center gap-2 active:translate-y-0.5"
+                className={`w-full py-3.5 px-4 rounded-2xl border-2 border-b-4 text-white font-black text-sm flex items-center justify-center gap-2 active:translate-y-0.5 cursor-pointer ${
+                  isChristmas
+                    ? 'bg-gradient-to-b from-emerald-500 to-emerald-700 border-emerald-950'
+                    : 'bg-gradient-to-b from-sky-400 to-sky-500 border-sky-700'
+                }`}
               >
                 <span>주문 내역 보기</span>
                 <ArrowRight className="w-4 h-4" />
@@ -155,7 +181,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   setSuccessOrderId(null);
                   onClose();
                 }}
-                className="w-full py-3 px-4 rounded-2xl bg-white border-2 border-b-4 border-stone-300 text-stone-700 font-black text-sm active:translate-y-0.5"
+                className="w-full py-3 px-4 rounded-2xl bg-white border-2 border-b-4 border-stone-300 text-stone-700 font-black text-sm active:translate-y-0.5 cursor-pointer"
               >
                 닫기
               </button>
@@ -165,7 +191,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           <div className="flex-1 overflow-y-auto p-5 space-y-5">
             {/* Buyer Identity */}
             {selectedStudent ? (
-              <div className="p-4 rounded-3xl bg-white border-2 border-b-[5px] border-sky-200 flex items-center justify-between">
+              <div
+                className={`p-4 rounded-3xl bg-white border-2 border-b-[5px] flex items-center justify-between ${
+                  isChristmas ? 'border-emerald-300' : 'border-sky-200'
+                }`}
+              >
                 <div className="flex items-center gap-3">
                   <AvatarBadgeIcon
                     avatar={selectedStudent.avatar}
@@ -176,29 +206,45 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     <span className="text-sm font-black text-stone-900 block">
                       {selectedStudent.name}
                     </span>
-                    <span className="text-xs font-bold text-amber-700 font-mono tabular-nums flex items-center gap-1 mt-0.5">
-                      <Coin3DIcon className="w-3.5 h-3.5" />
-                      잔액 {selectedStudent.balance.toLocaleString()}{config.currencyUnit}
+                    <span
+                      className={`text-xs font-bold font-mono tabular-nums flex items-center gap-1 mt-0.5 ${
+                        isChristmas ? 'text-red-800' : 'text-amber-700'
+                      }`}
+                    >
+                      <Coin3DIcon className="w-3.5 h-3.5" isChristmas={isChristmas} />
+                      잔액 {selectedStudent.balance.toLocaleString()} {config.currencyUnit}
                     </span>
                   </div>
                 </div>
                 <button
                   onClick={onOpenStudentSelector}
-                  className="px-3.5 py-2 rounded-2xl bg-sky-100 hover:bg-sky-200 border-2 border-b-4 border-sky-300 text-sky-900 font-black text-xs active:translate-y-0.5"
+                  className={`px-3.5 py-2 rounded-2xl border-2 border-b-4 font-black text-xs active:translate-y-0.5 cursor-pointer ${
+                    isChristmas
+                      ? 'bg-emerald-50 hover:bg-emerald-100 border-emerald-300 text-emerald-950'
+                      : 'bg-sky-100 hover:bg-sky-200 border-sky-300 text-sky-900'
+                  }`}
                 >
                   변경
                 </button>
               </div>
             ) : (
-              <div className="p-4 rounded-3xl bg-white border-2 border-b-[5px] border-amber-200 space-y-2.5">
+              <div
+                className={`p-4 rounded-3xl bg-white border-2 border-b-[5px] space-y-2.5 ${
+                  isChristmas ? 'border-amber-300' : 'border-amber-200'
+                }`}
+              >
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-black text-stone-800 flex items-center gap-1.5">
-                    <User className="w-4 h-4 text-amber-600" />
+                    <User
+                      className={`w-4 h-4 ${isChristmas ? 'text-red-700' : 'text-amber-600'}`}
+                    />
                     <span>주문자 이름 입력 (게스트 결제)</span>
                   </label>
                   <button
                     onClick={onOpenStudentSelector}
-                    className="text-xs font-black text-sky-700 hover:underline"
+                    className={`text-xs font-black hover:underline cursor-pointer ${
+                      isChristmas ? 'text-emerald-700' : 'text-sky-700'
+                    }`}
                   >
                     계정 로그인
                   </button>
@@ -209,7 +255,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   value={guestName}
                   onChange={(e) => setGuestName(e.target.value)}
                   placeholder="이름 입력"
-                  className="w-full px-3.5 py-2.5 rounded-2xl border-2 border-amber-300 focus:border-amber-500 focus:outline-hidden font-black text-sm text-stone-900 bg-amber-50/40"
+                  className={`w-full px-3.5 py-2.5 rounded-2xl border-2 focus:outline-hidden font-black text-sm text-stone-900 ${
+                    isChristmas
+                      ? 'border-amber-300 focus:border-red-500 bg-amber-50/30'
+                      : 'border-amber-300 focus:border-amber-500 bg-amber-50/40'
+                  }`}
                 />
               </div>
             )}
@@ -217,12 +267,16 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             {/* Cart Items List */}
             {items.length === 0 ? (
               <div className="py-16 text-center space-y-2">
-                <div className="w-14 h-14 rounded-3xl bg-amber-100 border-2 border-b-4 border-amber-300 text-amber-600 flex items-center justify-center mx-auto">
+                <div
+                  className={`w-14 h-14 rounded-3xl border-2 border-b-4 flex items-center justify-center mx-auto ${
+                    isChristmas
+                      ? 'bg-red-50 border-red-200 text-red-700'
+                      : 'bg-amber-100 border-amber-300 text-amber-600'
+                  }`}
+                >
                   <ShoppingBag className="w-7 h-7" />
                 </div>
-                <p className="text-stone-500 font-black text-sm">
-                  장바구니가 비어 있습니다
-                </p>
+                <p className="text-stone-500 font-black text-sm">장바구니가 비어 있습니다</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -230,7 +284,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   <span>담은 물품 ({items.length})</span>
                   <button
                     onClick={onClearCart}
-                    className="text-rose-500 hover:underline"
+                    className="text-rose-600 hover:underline cursor-pointer"
                   >
                     전체 삭제
                   </button>
@@ -253,8 +307,12 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                         <h4 className="text-sm font-black text-stone-900 truncate">
                           {item.product.name}
                         </h4>
-                        <span className="text-xs font-black font-mono tabular-nums text-amber-700">
-                          {(item.product.price * item.quantity).toLocaleString()}
+                        <span
+                          className={`text-xs font-black font-mono tabular-nums ${
+                            isChristmas ? 'text-red-700' : 'text-amber-700'
+                          }`}
+                        >
+                          {(item.product.price * item.quantity).toLocaleString()}{' '}
                           {config.currencyUnit}
                         </span>
                       </div>
@@ -264,7 +322,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                       <div className="flex items-center gap-1 bg-amber-50 border border-amber-200 rounded-2xl p-1">
                         <button
                           onClick={() => onUpdateQuantity(item.product.id, -1)}
-                          className="w-7 h-7 flex items-center justify-center rounded-xl bg-white border border-b-2 border-amber-300 text-stone-700 active:translate-y-0.5"
+                          className="w-7 h-7 flex items-center justify-center rounded-xl bg-white border border-b-2 border-amber-300 text-stone-700 active:translate-y-0.5 cursor-pointer"
                         >
                           <Minus className="w-3.5 h-3.5" />
                         </button>
@@ -274,7 +332,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                         <button
                           onClick={() => onUpdateQuantity(item.product.id, 1)}
                           disabled={item.quantity >= item.product.stock}
-                          className="w-7 h-7 flex items-center justify-center rounded-xl bg-white border border-b-2 border-amber-300 text-stone-700 disabled:opacity-30 active:translate-y-0.5"
+                          className="w-7 h-7 flex items-center justify-center rounded-xl bg-white border border-b-2 border-amber-300 text-stone-700 disabled:opacity-30 active:translate-y-0.5 cursor-pointer"
                         >
                           <Plus className="w-3.5 h-3.5" />
                         </button>
@@ -282,7 +340,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
                       <button
                         onClick={() => onRemoveItem(item.product.id)}
-                        className="p-1.5 text-stone-400 hover:text-rose-500 rounded-xl transition-colors"
+                        className="p-1.5 text-stone-400 hover:text-rose-500 rounded-xl transition-colors cursor-pointer"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -316,12 +374,23 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 </span>
               </div>
 
+              <div className="flex justify-between text-stone-600">
+                <span>총 결제 금액</span>
+                <span
+                  className={`font-black font-mono tabular-nums text-sm ${
+                    isChristmas ? 'text-red-700' : 'text-stone-900'
+                  }`}
+                >
+                  {totalAmount.toLocaleString()} {config.currencyUnit}
+                </span>
+              </div>
+
               {!isGuestMode && (
                 <>
                   <div className="flex justify-between text-stone-600">
                     <span>보유 잔액</span>
                     <span className="font-black font-mono tabular-nums text-stone-900">
-                      {studentBalance.toLocaleString()}{config.currencyUnit}
+                      {studentBalance.toLocaleString()} {config.currencyUnit}
                     </span>
                   </div>
                   <div className="flex justify-between pt-1.5 border-t border-stone-200">
@@ -331,8 +400,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                         isBalanceEnough ? 'text-emerald-700' : 'text-rose-600'
                       }`}
                     >
-                      {(studentBalance - totalAmount).toLocaleString()}
-                      {config.currencyUnit}
+                      {(studentBalance - totalAmount).toLocaleString()} {config.currencyUnit}
                     </span>
                   </div>
                 </>
@@ -343,7 +411,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               <div className="p-3 rounded-2xl bg-rose-50 border-2 border-rose-200 flex items-center gap-2 text-rose-700 text-xs font-black">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>
-                  잔액이 {shortage.toLocaleString()}{config.currencyUnit} 부족합니다.
+                  잔액이 {shortage.toLocaleString()} {config.currencyUnit} 부족합니다.
                 </span>
               </div>
             )}
@@ -351,9 +419,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             <button
               onClick={handleCheckout}
               disabled={!canCheckout || isSubmitting}
-              className={`w-full py-3.5 px-4 rounded-2xl font-black text-sm border-2 border-b-[5px] flex items-center justify-center gap-2 transition-all active:translate-y-0.5 ${
+              className={`w-full py-3.5 px-4 rounded-2xl font-black text-sm border-2 border-b-[5px] flex items-center justify-center gap-2 transition-all active:translate-y-0.5 cursor-pointer ${
                 !canCheckout
                   ? 'bg-stone-200 border-stone-300 text-stone-400 cursor-not-allowed'
+                  : isChristmas
+                  ? 'bg-gradient-to-b from-emerald-500 to-emerald-700 hover:from-emerald-400 hover:to-emerald-600 border-emerald-950 text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.45)]'
                   : 'bg-gradient-to-b from-emerald-400 to-emerald-600 hover:from-emerald-300 hover:to-emerald-500 border-emerald-800 text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.5)]'
               }`}
             >

@@ -1,4 +1,14 @@
 import { Product, Student, StoreConfig } from '../types';
+import { isChristmasSeason } from './seasonTheme';
+
+export const LEGACY_DEFAULT_PRODUCT_IDS = [
+  'prod-template-1',
+  'prod-template-2',
+  'prod-template-3',
+  'prod-template-4',
+  'prod-template-5',
+  'prod-template-6',
+];
 
 export const TEMPLATE_TEACHER: Student = {
   id: 'teacher-bang',
@@ -65,73 +75,13 @@ export const TEMPLATE_STUDENTS: Student[] = [
   },
 ];
 
-export const TEMPLATE_PRODUCTS: Product[] = [
-  {
-    id: 'prod-template-1',
-    name: '초코파이',
-    price: 300,
-    category: '간식',
-    stock: 10,
-    emoji: 'choco',
-    description: '쉬는 시간 간식',
-    isAvailable: true,
-  },
-  {
-    id: 'prod-template-2',
-    name: '과일젤리',
-    price: 200,
-    category: '간식',
-    stock: 15,
-    emoji: 'jelly',
-    description: '과일 맛 젤리 1봉지',
-    isAvailable: true,
-  },
-  {
-    id: 'prod-template-3',
-    name: '캐릭터 지우개',
-    price: 200,
-    category: '문구류',
-    stock: 10,
-    emoji: 'pencil',
-    description: '필통 학용품',
-    isAvailable: true,
-  },
-  {
-    id: 'prod-template-4',
-    name: '칭찬 스티커 세트',
-    price: 150,
-    category: '문구류',
-    stock: 20,
-    emoji: 'star',
-    description: '홀로그램 스타 스티커',
-    isAvailable: true,
-  },
-  {
-    id: 'prod-template-5',
-    name: '자유시간 10분 쿠폰',
-    price: 600,
-    category: '특별쿠폰',
-    stock: 5,
-    emoji: 'ticket',
-    description: '수업 후 자유시간 10분',
-    isAvailable: true,
-  },
-  {
-    id: 'prod-template-6',
-    name: '음악 신청권',
-    price: 400,
-    category: '특별쿠폰',
-    stock: 5,
-    emoji: 'music',
-    description: '원하는 노래 1곡 재생',
-    isAvailable: true,
-  },
-];
+// Default products removed so teacher adds real items directly
+export const TEMPLATE_PRODUCTS: Product[] = [];
 
 export const TEMPLATE_CONFIG: StoreConfig = {
   isOpen: true,
   storeNotice: '',
-  currencyUnit: '원',
+  currencyUnit: isChristmasSeason() ? 'CM' : '원',
   adminPin: '1234',
   soundEnabled: true,
 };

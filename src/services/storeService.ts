@@ -15,11 +15,12 @@ import {
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { Product, Order, Student, StoreConfig, OrderStatus } from '../types';
 import {
-  TEMPLATE_PRODUCTS,
+  LEGACY_DEFAULT_PRODUCT_IDS,
   TEMPLATE_STUDENTS,
   TEMPLATE_CONFIG,
   TEMPLATE_TEACHER,
 } from '../utils/initialData';
+import { isChristmasSeason, getEffectiveCurrencyUnit } from '../utils/seasonTheme';
 
 const PRODUCTS_COLLECTION = 'products';
 const ORDERS_COLLECTION = 'orders';
@@ -27,8 +28,40 @@ const STUDENTS_COLLECTION = 'students';
 const CONFIG_COLLECTION = 'storeConfig';
 const CONFIG_DOC_ID = 'general';
 
+const LEGACY_CLEANUP_FLAG_KEY = 'christmas_market_legacy_products_cleaned_v1';
+
+/**
+ * Remove legacy pre-seeded template products once so teacher can add custom items cleanly
+ */
+export async function cleanupLegacyTemplateProducts(): Promise<void> {
+  try {
+    if (typeof window !== 'undefined' && localStorage.getItem(LEGACY_CLEANUP_FLAG_KEY)) {
+      return;
+    }
+
+    for (const prodId of LEGACY_DEFAULT_PRODUCT_IDS) {
+      try {
+        const ref = doc(db, PRODUCTS_COLLECTION, prodId);
+        const snap = await getDoc(ref);
+        if (snap.exists()) {
+          await deleteDoc(ref);
+        }
+      } catch (err) {
+        console.warn('Legacy product cleanup skipped for:', prodId, err);
+      }
+    }
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(LEGACY_CLEANUP_FLAG_KEY, '1');
+    }
+  } catch (err) {
+    console.warn('Legacy template products cleanup warning:', err);
+  }
+}
+
 /**
  * Initialize Firestore data if collections are empty on first run
+ * Note: Products are NOT seeded automatically so teacher adds them directly.
  */
 export async function seedInitialDataIfNeeded(): Promise<void> {
   try {
@@ -58,25 +91,25 @@ export async function seedInitialDataIfNeeded(): Promise<void> {
       }
     }
 
-    // 2. Ensure products collection has template goods
-    const prodSnap = await getDocs(collection(db, PRODUCTS_COLLECTION));
-    if (prodSnap.empty) {
-      for (const p of TEMPLATE_PRODUCTS) {
-        await setDoc(doc(db, PRODUCTS_COLLECTION, p.id), {
-          ...p,
-          createdAt: new Date().toISOString(),
+    // 2. Ensure store config exists & matches active seasonal currency
+    const christmas = isChristmasSeason();
+    const configRef = doc(db, CONFIG_COLLECTION, CONFIG_DOC_ID);
+    const configDoc = await getDoc(configRef);
+    if (!configDoc.exists()) {
+      await setDoc(configRef, {
+        ...TEMPLATE_CONFIG,
+        currencyUnit: christmas ? 'CM' : '원',
+        updatedAt: new Date().toISOString(),
+      });
+    } else {
+      const existing = configDoc.data() as StoreConfig;
+      const expectedUnit = getEffectiveCurrencyUnit(existing.currencyUnit, christmas);
+      if (expectedUnit !== existing.currencyUnit) {
+        await updateDoc(configRef, {
+          currencyUnit: expectedUnit,
           updatedAt: new Date().toISOString(),
         });
       }
-    }
-
-    // 3. Ensure store config exists
-    const configDoc = await getDoc(doc(db, CONFIG_COLLECTION, CONFIG_DOC_ID));
-    if (!configDoc.exists()) {
-      await setDoc(doc(db, CONFIG_COLLECTION, CONFIG_DOC_ID), {
-        ...TEMPLATE_CONFIG,
-        updatedAt: new Date().toISOString(),
-      });
     }
   } catch (err) {
     console.error('Initial seeding error on Firestore:', err);
@@ -84,24 +117,20 @@ export async function seedInitialDataIfNeeded(): Promise<void> {
 }
 
 /**
- * Reset / Reload template data to Firestore
+ * Reset student & config template data in Firestore (does NOT recreate fake products)
  */
 export async function resetToTemplateData(): Promise<void> {
   try {
+    const christmas = isChristmasSeason();
     for (const s of TEMPLATE_STUDENTS) {
       await setDoc(doc(db, STUDENTS_COLLECTION, s.id), {
         ...s,
         updatedAt: new Date().toISOString(),
       });
     }
-    for (const p of TEMPLATE_PRODUCTS) {
-      await setDoc(doc(db, PRODUCTS_COLLECTION, p.id), {
-        ...p,
-        updatedAt: new Date().toISOString(),
-      });
-    }
     await setDoc(doc(db, CONFIG_COLLECTION, CONFIG_DOC_ID), {
       ...TEMPLATE_CONFIG,
+      currencyUnit: christmas ? 'CM' : '원',
       updatedAt: new Date().toISOString(),
     });
   } catch (err) {
@@ -113,7 +142,7 @@ export async function resetToTemplateData(): Promise<void> {
  * Name-based login function using Firebase Firestore:
  * - If name is "방소정", automatically grants teacher role!
  * - If student already exists in Firestore, logs in as that student.
- * - If student doesn't exist, automatically registers them in Firestore with default 2,000 happiness money.
+ * - If student doesn't exist, automatically registers them in Firestore with default 2,000 money.
  */
 export async function loginByName(rawName: string): Promise<Student> {
   const name = rawName.trim();
@@ -171,7 +200,6 @@ export async function loginByName(rawName: string): Promise<Student> {
     return newUser;
   } catch (error) {
     handleFirestoreError(error, OperationType.GET, STUDENTS_COLLECTION);
-    // Fallback object in case of temporary offline
     return {
       id: `fallback-${Date.now()}`,
       name,
@@ -185,7 +213,7 @@ export async function loginByName(rawName: string): Promise<Student> {
 }
 
 /**
- * Real-time subscription to Products
+ * Real-time subscription to Products (empty when teacher hasn't added any)
  */
 export function subscribeProducts(callback: (products: Product[]) => void): () => void {
   try {
@@ -193,8 +221,7 @@ export function subscribeProducts(callback: (products: Product[]) => void): () =
       collection(db, PRODUCTS_COLLECTION),
       (snapshot) => {
         if (snapshot.empty) {
-          seedInitialDataIfNeeded();
-          callback(TEMPLATE_PRODUCTS);
+          callback([]);
           return;
         }
         const items: Product[] = [];
@@ -206,12 +233,12 @@ export function subscribeProducts(callback: (products: Product[]) => void): () =
       (error) => {
         console.error('Firestore products subscription error:', error);
         handleFirestoreError(error, OperationType.GET, PRODUCTS_COLLECTION);
-        callback(TEMPLATE_PRODUCTS);
+        callback([]);
       }
     );
     return unsub;
   } catch {
-    callback(TEMPLATE_PRODUCTS);
+    callback([]);
     return () => {};
   }
 }
@@ -285,29 +312,44 @@ export function subscribeStoreConfig(callback: (config: StoreConfig) => void): (
     const unsub = onSnapshot(
       docRef,
       (snapshot) => {
+        const christmas = isChristmasSeason();
         if (snapshot.exists()) {
-          callback({ id: snapshot.id, ...(snapshot.data() as StoreConfig) });
+          const data = snapshot.data() as StoreConfig;
+          callback({
+            id: snapshot.id,
+            ...data,
+            currencyUnit: getEffectiveCurrencyUnit(data.currencyUnit, christmas),
+          });
         } else {
           seedInitialDataIfNeeded();
-          callback(TEMPLATE_CONFIG);
+          callback({
+            ...TEMPLATE_CONFIG,
+            currencyUnit: christmas ? 'CM' : '원',
+          });
         }
       },
       (error) => {
         console.error('Firestore config subscription error:', error);
         handleFirestoreError(error, OperationType.GET, `${CONFIG_COLLECTION}/${CONFIG_DOC_ID}`);
-        callback(TEMPLATE_CONFIG);
+        callback({
+          ...TEMPLATE_CONFIG,
+          currencyUnit: isChristmasSeason() ? 'CM' : '원',
+        });
       }
     );
     return unsub;
   } catch {
-    callback(TEMPLATE_CONFIG);
+    callback({
+      ...TEMPLATE_CONFIG,
+      currencyUnit: isChristmasSeason() ? 'CM' : '원',
+    });
     return () => {};
   }
 }
 
 /**
  * Place a new Order:
- * Decreases student's happiness money and product stock directly in Firestore
+ * Decreases student's money and product stock directly in Firestore
  */
 export async function placeOrder(orderData: Omit<Order, 'id' | 'createdAt' | 'status'>): Promise<string> {
   const orderId = `ord-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -322,12 +364,10 @@ export async function placeOrder(orderData: Omit<Order, 'id' | 'createdAt' | 'st
   };
 
   try {
-    // 1. Guaranteed Student Balance Deduction
     let targetStudentRef = null;
     let currentBalance = 3000;
     let currentSpent = 0;
 
-    // Check by studentId first if given and not 'guest'
     if (orderData.studentId && orderData.studentId !== 'guest') {
       const byIdRef = doc(db, STUDENTS_COLLECTION, orderData.studentId);
       const byIdSnap = await getDoc(byIdRef);
@@ -339,7 +379,6 @@ export async function placeOrder(orderData: Omit<Order, 'id' | 'createdAt' | 'st
       }
     }
 
-    // If not found by ID, look up by studentName
     if (!targetStudentRef && orderData.studentName) {
       const q = query(
         collection(db, STUDENTS_COLLECTION),
@@ -355,7 +394,6 @@ export async function placeOrder(orderData: Omit<Order, 'id' | 'createdAt' | 'st
     }
 
     if (targetStudentRef) {
-      // Deduct balance directly in Firestore
       const newBal = Math.max(0, currentBalance - orderData.totalPrice);
       await updateDoc(targetStudentRef, {
         balance: newBal,
@@ -363,7 +401,6 @@ export async function placeOrder(orderData: Omit<Order, 'id' | 'createdAt' | 'st
         updatedAt: now,
       });
     } else if (orderData.studentName) {
-      // If student not found at all, create new student record with balance deducted from 3000
       const newStudentId = `student-${Date.now()}`;
       const newBal = Math.max(0, 3000 - orderData.totalPrice);
       await setDoc(doc(db, STUDENTS_COLLECTION, newStudentId), {
@@ -375,13 +412,12 @@ export async function placeOrder(orderData: Omit<Order, 'id' | 'createdAt' | 'st
         balance: newBal,
         totalSpent: orderData.totalPrice,
         totalEarned: 3000,
-        avatar: '🧒',
+        avatar: 'star',
         createdAt: now,
         updatedAt: now,
       });
     }
 
-    // 2. Decrement item stock safely
     for (const item of orderData.items) {
       try {
         const prodRef = doc(db, PRODUCTS_COLLECTION, item.productId);
@@ -400,7 +436,6 @@ export async function placeOrder(orderData: Omit<Order, 'id' | 'createdAt' | 'st
       }
     }
 
-    // 3. Save Order to Firestore
     const orderRef = doc(db, ORDERS_COLLECTION, orderId);
     await setDoc(orderRef, newOrder);
   } catch (error) {
@@ -417,7 +452,7 @@ export async function placeOrder(orderData: Omit<Order, 'id' | 'createdAt' | 'st
 
 /**
  * Teacher updates order status (APPROVE, COMPLETE, or REJECT)
- * When REJECTED: Restores student's happiness money balance and item stock!
+ * When REJECTED: Restores student's money balance and item stock!
  */
 export async function updateOrderStatus(
   order: Order,
@@ -428,13 +463,11 @@ export async function updateOrderStatus(
   const orderRef = doc(db, ORDERS_COLLECTION, order.id);
 
   try {
-    // If rejecting an order, refund student and restore stock!
     if (newStatus === 'REJECTED' && order.status !== 'REJECTED') {
       let targetStudentRef = null;
       let currentBal = 0;
       let currentSpent = 0;
 
-      // Look up by studentId first
       if (order.studentId && order.studentId !== 'guest') {
         const sRef = doc(db, STUDENTS_COLLECTION, order.studentId);
         const sSnap = await getDoc(sRef);
@@ -446,7 +479,6 @@ export async function updateOrderStatus(
         }
       }
 
-      // If not found, look up by name
       if (!targetStudentRef && order.studentName) {
         const nameQ = query(
           collection(db, STUDENTS_COLLECTION),
@@ -469,7 +501,6 @@ export async function updateOrderStatus(
         });
       }
 
-      // Restore items stock
       for (const item of order.items) {
         try {
           const prodRef = doc(db, PRODUCTS_COLLECTION, item.productId);
@@ -488,7 +519,6 @@ export async function updateOrderStatus(
       }
     }
 
-    // Update order status in Firestore
     await updateDoc(orderRef, {
       status: newStatus,
       rejectReason: rejectReason || (newStatus === 'REJECTED' ? '선생님 확인 후 취소되었습니다' : ''),
@@ -500,8 +530,7 @@ export async function updateOrderStatus(
 }
 
 /**
- * Direct Money Setting by Teacher ("친구들 돈 설정"):
- * Sets exact balance for a student in Firestore
+ * Direct Money Setting by Teacher ("친구들 돈 설정")
  */
 export async function setStudentBalance(
   studentId: string,
@@ -525,7 +554,7 @@ export async function setStudentBalance(
 export async function adjustStudentBalance(
   studentId: string,
   amountChange: number,
-  reason: string
+  _reason: string
 ): Promise<void> {
   const now = new Date().toISOString();
   const studentRef = doc(db, STUDENTS_COLLECTION, studentId);
